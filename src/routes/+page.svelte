@@ -1,2 +1,1286 @@
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
+<script lang="ts">
+  import { onMount, onDestroy } from 'svelte';
+  import { browser } from '$app/environment';
+  import { cn } from '$lib/utils';
+
+  import { Tabs, TabsList, TabsTrigger, TabsContent } from '$lib/components/ui/tabs';
+  import { Button } from '$lib/components/ui/button';
+  import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
+  import { Input } from '$lib/components/ui/input';
+  import { Label } from '$lib/components/ui/label';
+  import { Select, SelectContent, SelectItem, SelectTrigger } from '$lib/components/ui/select';
+  import { Textarea } from '$lib/components/ui/textarea';
+  import { Separator } from '$lib/components/ui/separator';
+  import { Badge } from '$lib/components/ui/badge';
+  import { Switch } from '$lib/components/ui/switch';
+  import { ScrollArea } from '$lib/components/ui/scroll-area';
+  import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '$lib/components/ui/dialog';
+
+  import {
+    QrCode,
+    Camera,
+    History,
+    Settings,
+    Info,
+    Download,
+    Copy,
+    Share2,
+    Trash2,
+    Sun,
+    Moon,
+    Monitor,
+    Wifi,
+    Mail,
+    Phone,
+    MapPin,
+    Link2,
+    Loader2,
+    Check,
+    X as XIcon,
+    Image,
+    FileText,
+    Eye,
+    MessageSquare,
+    User
+  } from '@lucide/svelte';
+
+  import QRCode from 'qrcode';
+  import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode';
+
+  // Types
+  type Tab = 'scan' | 'create' | 'history' | 'settings';
+  type QRType = 'url' | 'text' | 'wifi' | 'email' | 'phone' | 'sms' | 'location' | 'contact';
+
+  type HistoryItem = {
+    id: string;
+    type: 'scan' | 'create';
+    content: string;
+    qrType?: QRType;
+    timestamp: number;
+    dataUrl?: string;
+  };
+
+  type Settings = {
+    theme: 'light' | 'dark' | 'system';
+    showHistory: boolean;
+    vibration: boolean;
+    sound: boolean;
+  };
+
+  // State
+  let activeTab = $state<Tab>('scan');
+  let settings = $state<Settings>({
+    theme: 'system',
+    showHistory: true,
+    vibration: true,
+    sound: true
+  });
+
+  let history = $state<HistoryItem[]>([]);
+  let isScanning = $state(false);
+  let scanResult = $state<string | null>(null);
+  let html5Qrcode = $state<Html5Qrcode | null>(null);
+  let selectedCameraId = $state<string | null>(null);
+  let cameras = $state<MediaDeviceInfo[]>([]);
+
+  // Create tab state
+  let qrType = $state<QRType>('url');
+  let qrInput = $state('');
+  let qrDataUrl = $state<string | null>(null);
+  let qrColor = $state('#000000');
+  let qrBgColor = $state('#ffffff');
+  let qrSize = $state(256);
+  let qrMargin = $state(4);
+  let isGenerating = $state(false);
+  let showQrDialog = $state(false);
+  let generatedQrDataUrl = $state<string | null>(null);
+
+  // Structured form fields
+  let wifiSsid = $state('');
+  let wifiPassword = $state('');
+  let wifiEncryption = $state('WPA');
+  let wifiHidden = $state(false);
+  let emailTo = $state('');
+  let emailSubject = $state('');
+  let emailBody = $state('');
+  let smsNumber = $state('');
+  let smsMessage = $state('');
+  let locLat = $state('');
+  let locLng = $state('');
+  let locating = $state(false);
+  let contactName = $state('');
+  let contactPhone = $state('');
+  let contactEmail = $state('');
+  let contactOrg = $state('');
+  let contactUrl = $state('');
+
+  // Animation states
+  let scanAnimation = $state(false);
+  let createAnimation = $state(false);
+
+  // Initialize
+  onMount(() => {
+    if (!browser) return;
+
+    // Load settings
+    const savedSettings = localStorage.getItem('qr_settings');
+    if (savedSettings) {
+      try {
+        settings = { ...settings, ...JSON.parse(savedSettings) };
+      } catch {}
+    }
+
+    // Load history
+    const savedHistory = localStorage.getItem('qr_history');
+    if (savedHistory) {
+      try {
+        history = JSON.parse(savedHistory);
+      } catch {}
+    }
+
+    // Apply theme
+    applyTheme(settings.theme);
+
+    // Get cameras
+    getCameras();
+  });
+
+  onDestroy(() => {
+    stopScanning();
+  });
+
+  function applyTheme(theme: Settings['theme']) {
+    if (!browser) return;
+    const root = document.documentElement;
+    if (theme === 'system') {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      root.classList.toggle('dark', prefersDark);
+    } else {
+      root.classList.toggle('dark', theme === 'dark');
+    }
+  }
+
+  function saveSettings() {
+    if (!browser) return;
+    localStorage.setItem('qr_settings', JSON.stringify(settings));
+    applyTheme(settings.theme);
+  }
+
+  function saveHistory() {
+    if (!browser || !settings.showHistory) return;
+    localStorage.setItem('qr_history', JSON.stringify(history.slice(0, 100)));
+  }
+
+  async function getCameras() {
+    if (!browser) return;
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      cameras = devices.filter(d => d.kind === 'videoinput');
+      if (cameras.length > 0 && !selectedCameraId) {
+        selectedCameraId = cameras[0].deviceId;
+      }
+    } catch (e) {
+      console.error('Failed to get cameras:', e);
+    }
+  }
+
+  async function startScanning() {
+    if (!browser || isScanning || !selectedCameraId) return;
+
+    try {
+      isScanning = true;
+      scanAnimation = true;
+      scanResult = null;
+
+      html5Qrcode = new Html5Qrcode('qr-reader');
+
+      await html5Qrcode.start(
+        selectedCameraId,
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0
+        },
+        (decodedText: string) => {
+          onScanSuccess(decodedText);
+        },
+        (error: string) => {
+          // Ignore scan errors
+        }
+      );
+    } catch (err) {
+      console.error('Failed to start scanning:', err);
+      isScanning = false;
+      scanAnimation = false;
+    }
+  }
+
+  function stopScanning() {
+    if (html5Qrcode && isScanning) {
+      html5Qrcode.stop().catch(console.error);
+      isScanning = false;
+      scanAnimation = false;
+    }
+  }
+
+  function onScanSuccess(text: string) {
+    scanResult = text;
+    scanAnimation = false;
+
+    if (settings.vibration && navigator.vibrate) {
+      navigator.vibrate(100);
+    }
+
+    if (settings.sound) {
+      // Play a subtle beep
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 800;
+      gain.gain.value = 0.1;
+      osc.start();
+      setTimeout(() => osc.stop(), 100);
+    }
+
+    stopScanning();
+
+    // Add to history
+    const item: HistoryItem = {
+      id: crypto.randomUUID(),
+      type: 'scan',
+      content: text,
+      timestamp: Date.now()
+    };
+    history = [item, ...history];
+    saveHistory();
+  }
+
+  // Check if any required structured field is missing
+  function isFormValid(): boolean {
+    switch (qrType) {
+      case 'url':
+      case 'text':
+      case 'phone':
+        return qrInput.trim().length > 0;
+      case 'wifi':
+        return wifiSsid.trim().length > 0;
+      case 'email':
+        return emailTo.trim().length > 0;
+      case 'sms':
+        return smsNumber.trim().length > 0;
+      case 'location':
+        return locLat.trim().length > 0 && locLng.trim().length > 0;
+      case 'contact':
+        return contactName.trim().length > 0;
+      default:
+        return true;
+    }
+  }
+
+  async function useMyLocation() {
+    if (!browser || !navigator.geolocation || locating) return;
+    locating = true;
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        locLat = pos.coords.latitude.toFixed(6);
+        locLng = pos.coords.longitude.toFixed(6);
+        locating = false;
+      },
+      _err => {
+        locating = false;
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  }
+
+  async function generateQRCode() {
+    if (!isFormValid() || isGenerating) return;
+
+    isGenerating = true;
+    createAnimation = true;
+
+    try {
+      let data = qrInput;
+
+      // Format data based on type, using form fields for structured types
+      switch (qrType) {
+        case 'wifi': {
+          data = `WIFI:T:${wifiEncryption};S:${wifiSsid};P:${wifiEncryption === 'nopass' ? '' : wifiPassword};H:${wifiHidden ? 'true' : 'false'};;`;
+          break;
+        }
+        case 'email': {
+          data = `mailto:${emailTo}${emailSubject ? `?subject=${encodeURIComponent(emailSubject)}` : ''}${emailBody ? `${emailSubject ? '&' : '?'}body=${encodeURIComponent(emailBody)}` : ''}`;
+          break;
+        }
+        case 'phone': {
+          data = `tel:${qrInput}`;
+          break;
+        }
+        case 'sms': {
+          data = `sms:${smsNumber}${smsMessage ? `?body=${encodeURIComponent(smsMessage)}` : ''}`;
+          break;
+        }
+        case 'location': {
+          data = `geo:${locLat},${locLng}`;
+          break;
+        }
+        case 'contact': {
+          data = [
+            'BEGIN:VCARD',
+            'VERSION:3.0',
+            `FN:${contactName}`,
+            contactName ? `N:${contactName};;;;` : '',
+            contactPhone ? `TEL:${contactPhone}` : '',
+            contactEmail ? `EMAIL:${contactEmail}` : '',
+            contactOrg ? `ORG:${contactOrg}` : '',
+            contactUrl ? `URL:${contactUrl}` : '',
+            'END:VCARD'
+          ]
+            .filter(Boolean)
+            .join('\n');
+          break;
+        }
+      }
+
+      const dataUrl = await QRCode.toDataURL(data, {
+        width: qrSize,
+        margin: qrMargin,
+        color: {
+          dark: qrColor,
+          light: qrBgColor
+        },
+        errorCorrectionLevel: 'M'
+      });
+
+      qrDataUrl = dataUrl;
+      generatedQrDataUrl = dataUrl;
+      createAnimation = false;
+
+      // Add to history
+      const item: HistoryItem = {
+        id: crypto.randomUUID(),
+        type: 'create',
+        content: data,
+        qrType,
+        timestamp: Date.now(),
+        dataUrl
+      };
+      history = [item, ...history];
+      saveHistory();
+    } catch (err) {
+      console.error('QR generation failed:', err);
+    } finally {
+      isGenerating = false;
+      createAnimation = false;
+    }
+  }
+
+  function getQRTypeLabel(type: QRType): string {
+    const labels: Record<QRType, string> = {
+      url: 'URL / Link',
+      text: 'Plain Text',
+      wifi: 'WiFi Network',
+      email: 'Email',
+      phone: 'Phone Number',
+      sms: 'SMS',
+      location: 'Location',
+      contact: 'Contact (vCard)'
+    };
+    return labels[type];
+  }
+
+  function getQRTypePlaceholder(type: QRType): string {
+    const placeholders: Record<QRType, string> = {
+      url: 'https://example.com',
+      text: 'Any text content',
+      wifi: 'SSID|Password|WPA|false (format: SSID|Password|Encryption|Hidden)',
+      email: 'email@example.com|Subject|Body',
+      phone: '+1234567890',
+      sms: '+1234567890|Message text',
+      location: '37.7749|-122.4194|Optional query',
+      contact: 'Name|Phone|Email|Organization|Website'
+    };
+    return placeholders[type];
+  }
+
+  function getQRTypeIcon(type: QRType) {
+    const icons: Record<QRType, any> = {
+      url: Link2,
+      text: FileText,
+      wifi: Wifi,
+      email: Mail,
+      phone: Phone,
+      sms: MessageSquare,
+      location: MapPin,
+      contact: User
+    };
+    return icons[type] || QrCode;
+  }
+
+  function formatTimestamp(ts: number): string {
+    const date = new Date(ts);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+
+    if (diff < 60000) return 'Just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
+
+    return date.toLocaleDateString();
+  }
+
+  function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text);
+  }
+
+  async function downloadQRCode() {
+    if (!generatedQrDataUrl) return;
+    const link = document.createElement('a');
+    link.href = generatedQrDataUrl;
+    link.download = `qrcode-${Date.now()}.png`;
+    link.click();
+  }
+
+  async function shareQRCode() {
+    if (!generatedQrDataUrl || !navigator.share) return;
+    try {
+      const response = await fetch(generatedQrDataUrl);
+      const blob = await response.blob();
+      const file = new File([blob], `qrcode-${Date.now()}.png`, { type: 'image/png' });
+      await navigator.share({ files: [file], title: 'QR Code' });
+    } catch (e) {
+      console.log('Share cancelled or failed');
+    }
+  }
+
+  function clearHistory() {
+    history = [];
+    saveHistory();
+  }
+
+  function deleteHistoryItem(id: string) {
+    history = history.filter(h => h.id !== id);
+    saveHistory();
+  }
+</script>
+
+<!-- Single Tabs component providing context for all tabs -->
+<Tabs value={activeTab} onchange={e => (activeTab = e.detail)} class="w-full flex flex-col min-h-screen bg-background">
+  <!-- Header with Desktop Tabs -->
+  <header class="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <div class="flex h-16 items-center justify-between px-4">
+      <h1 class="text-xl font-semibold tracking-tight">QR Code</h1>
+    </div>
+
+    <!-- Desktop Tabs (top) -->
+    <div class="hidden lg:flex lg:border-b lg:bg-background/95 lg:backdrop-blur">
+      <TabsList class="flex h-12 w-full bg-transparent p-1" role="tablist">
+        <TabsTrigger
+          value="scan"
+          class="flex items-center gap-2 px-4 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-primary"
+        >
+          <Camera class="h-4 w-4" />
+          <span>Scan</span>
+        </TabsTrigger>
+        <TabsTrigger
+          value="create"
+          class="flex items-center gap-2 px-4 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-primary"
+        >
+          <QrCode class="h-4 w-4" />
+          <span>Create</span>
+        </TabsTrigger>
+        <TabsTrigger
+          value="history"
+          class="flex items-center gap-2 px-4 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-primary"
+        >
+          <History class="h-4 w-4" />
+          <span>History</span>
+        </TabsTrigger>
+        <TabsTrigger
+          value="settings"
+          class="flex items-center gap-2 px-4 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-primary"
+        >
+          <Settings class="h-4 w-4" />
+          <span>Settings</span>
+        </TabsTrigger>
+      </TabsList>
+    </div>
+  </header>
+
+  <!-- Mobile Tabs (bottom) -->
+  <div class="lg:hidden border-t bg-background/95 backdrop-blur sticky bottom-0 z-50" style="padding-bottom: env(safe-area-inset-bottom, 0px)">
+    <TabsList class="flex h-14 w-full bg-transparent p-0" role="tablist">
+      <TabsTrigger
+        value="scan"
+        class="flex flex-col items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium data-[state=active]:text-primary"
+      >
+        <Camera class="h-5 w-5" />
+        <span>Scan</span>
+      </TabsTrigger>
+      <TabsTrigger
+        value="create"
+        class="flex flex-col items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium data-[state=active]:text-primary"
+      >
+        <QrCode class="h-5 w-5" />
+        <span>Create</span>
+      </TabsTrigger>
+      <TabsTrigger
+        value="history"
+        class="relative flex flex-col items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium data-[state=active]:text-primary"
+      >
+        <History class="h-5 w-5" />
+        <span>History</span>
+        {#if history.length > 0}
+          <span
+            class="absolute -top-0.5 right-1 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground px-1"
+          >
+            {history.length > 99 ? '99+' : history.length}
+          </span>
+        {/if}
+      </TabsTrigger>
+      <TabsTrigger
+        value="settings"
+        class="flex flex-col items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium data-[state=active]:text-primary"
+      >
+        <Settings class="h-5 w-5" />
+        <span>Settings</span>
+      </TabsTrigger>
+    </TabsList>
+  </div>
+
+  <!-- Tab Content -->
+  <main class="flex-1 overflow-y-auto p-4 lg:p-6">
+    <!-- SCAN TAB -->
+    <TabsContent value="scan" class="animate-in fade-in-0 duration-200" forceMount>
+      <div class="space-y-6 max-w-md mx-auto w-full">
+        <!-- Camera Scanner -->
+        <Card class="overflow-hidden">
+          <CardHeader class="pb-2">
+            <CardTitle class="flex items-center gap-2">
+              <Camera class="h-5 w-5 text-primary" />
+              QR Scanner
+            </CardTitle>
+          </CardHeader>
+          <CardContent class="pt-0">
+            <div class="relative aspect-square max-w-xs mx-auto">
+              <div id="qr-reader" class="w-full h-full" />
+              {#if !isScanning}
+                <div
+                  class="absolute inset-0 flex flex-col items-center justify-center bg-muted/50 rounded-lg border-2 border-dashed border-border p-4"
+                >
+                  <Camera class="h-12 w-12 text-muted-foreground mb-3" />
+                  <p class="text-center text-muted-foreground text-sm">
+                    {selectedCameraId ? 'Tap to start scanning' : 'No camera found'}
+                  </p>
+                  {#if selectedCameraId}
+                    <Button class="mt-3" size="lg" onclick={startScanning} disabled={isGenerating}>
+                      {#if scanAnimation}
+                        <Loader2 class="h-4 w-4 animate-spin mr-2" />
+                        Starting...
+                      {:else}
+                        Start Scanning
+                      {/if}
+                    </Button>
+                  {/if}
+                </div>
+              {/if}
+
+              {#if isScanning}
+                <!-- Scan frame overlay -->
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div class="relative w-[250px] h-[250px]">
+                    <div class="absolute inset-0 border-2 border-primary/50 rounded-lg"></div>
+                    <!-- Corner brackets -->
+                    <div class="absolute -top-2 -left-2 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg"></div>
+                    <div class="absolute -top-2 -right-2 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg"></div>
+                    <div class="absolute -bottom-2 -left-2 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg"></div>
+                    <div class="absolute -bottom-2 -right-2 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg"></div>
+                  </div>
+                </div>
+
+                <div
+                  class="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-background/90 backdrop-blur px-4 py-2 rounded-full shadow-lg"
+                >
+                  <Loader2 class="h-4 w-4 animate-spin text-primary" />
+                  <span class="text-sm font-medium">Scanning...</span>
+                  <Button variant="ghost" size="icon" onclick={stopScanning} class="text-destructive">
+                    <XIcon class="h-4 w-4" />
+                  </Button>
+                </div>
+              {/if}
+            </div>
+
+            {#if scanResult && !isScanning}
+              <div
+                class="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg animate-in slide-in-from-bottom-2 duration-300"
+              >
+                <div class="flex items-start gap-3">
+                  <Check class="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-green-800 dark:text-green-200">QR Code Detected!</p>
+                    <p class="text-sm text-green-700 dark:text-green-300 mt-1 break-all">{scanResult}</p>
+                    <div class="flex gap-2 mt-3">
+                      <Button variant="outline" size="sm" onclick={() => copyToClipboard(scanResult!)}>
+                        <Copy class="h-3 w-3 mr-1" />
+                        Copy
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onclick={() => {
+                          activeTab = 'history';
+                          scanResult = null;
+                        }}
+                      >
+                        <History class="h-3 w-3 mr-1" />
+                        View History
+                      </Button>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" onclick={() => (scanResult = null)}>
+                    <XIcon class="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            {/if}
+          </CardContent>
+        </Card>
+
+        <!-- Camera Selector -->
+        {#if cameras.length > 1}
+          <Card>
+            <CardContent class="pt-6">
+              <Label class="text-sm font-medium mb-2 block">Camera</Label>
+              <Select value={selectedCameraId} onchange={e => (selectedCameraId = e.detail)}>
+                <SelectTrigger class="w-full">
+                  {cameras.find(c => c.deviceId === selectedCameraId)?.label || 'Select camera'}
+                </SelectTrigger>
+                <SelectContent>
+                  {#each cameras as camera}
+                    <SelectItem value={camera.deviceId}>
+                      {camera.label || `Camera ${cameras.indexOf(camera) + 1}`}
+                    </SelectItem>
+                  {/each}
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+        {/if}
+
+        <!-- Scan Result Actions -->
+        {#if scanResult && !isScanning}
+          <Card>
+            <CardContent class="pt-6">
+              <div class="space-y-2">
+                <Button class="w-full" onclick={() => copyToClipboard(scanResult!)}>
+                  <Copy class="h-4 w-4 mr-2" />
+                  Copy to Clipboard
+                </Button>
+                <Button
+                  variant="outline"
+                  class="w-full"
+                  onclick={() => {
+                    activeTab = 'history';
+                    scanResult = null;
+                  }}
+                >
+                  <History class="h-4 w-4 mr-2" />
+                  View in History
+                </Button>
+                <Button variant="ghost" class="w-full text-destructive" onclick={() => (scanResult = null)}>
+                  <XIcon class="h-4 w-4 mr-2" />
+                  Dismiss
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        {/if}
+      </div>
+    </TabsContent>
+
+    <!-- CREATE TAB -->
+    <TabsContent value="create" class="animate-in fade-in-0 duration-200" forceMount>
+      <div class="space-y-6 max-w-2xl mx-auto w-full">
+        <!-- QR Type Selector -->
+        <Card>
+          <CardHeader class="pb-2">
+            <CardTitle class="flex items-center gap-2">
+              <QrCode class="h-5 w-5 text-primary" />
+              Create QR Code
+            </CardTitle>
+          </CardHeader>
+          <CardContent class="pt-0">
+            <div class="space-y-4">
+              <!-- Type Selector -->
+              <div>
+                <Label class="text-sm font-medium mb-2 block">QR Code Type</Label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {#each ['url', 'text', 'wifi', 'email', 'phone', 'sms', 'location', 'contact'] as type (type)}
+                    <button
+                      class={cn(
+                        'relative p-3 rounded-lg border-2 transition-all duration-200',
+                        'flex flex-col items-center gap-1.5 text-sm',
+                        qrType === type ? 'border-primary bg-primary/5 text-primary' : 'border-border hover:border-primary/50 hover:bg-accent'
+                      )}
+                      onclick={() => {
+                        qrType = type;
+                        qrInput = '';
+                        qrDataUrl = null;
+                      }}
+                    >
+                      {#if getQRTypeIcon(type) === Link2}
+                        <Link2 class="h-5 w-5" />
+                      {:else if getQRTypeIcon(type) === FileText}
+                        <FileText class="h-5 w-5" />
+                      {:else if getQRTypeIcon(type) === Wifi}
+                        <Wifi class="h-5 w-5" />
+                      {:else if getQRTypeIcon(type) === Mail}
+                        <Mail class="h-5 w-5" />
+                      {:else if getQRTypeIcon(type) === Phone}
+                        <Phone class="h-5 w-5" />
+                      {:else if getQRTypeIcon(type) === MessageSquare}
+                        <MessageSquare class="h-5 w-5" />
+                      {:else if getQRTypeIcon(type) === MapPin}
+                        <MapPin class="h-5 w-5" />
+                      {:else if getQRTypeIcon(type) === User}
+                        <User class="h-5 w-5" />
+                      {/if}
+                      <span class="font-medium">{getQRTypeLabel(type)}</span>
+                    </button>
+                  {/each}
+                </div>
+              </div>
+
+              <!-- Input -->
+              <div>
+                <Label class="text-sm font-medium mb-2 block">Content</Label>
+                {#if qrType === 'url' || qrType === 'text' || qrType === 'phone'}
+                  <Textarea bind:value={qrInput} placeholder={getQRTypePlaceholder(qrType)} class="min-h-[100px] font-mono text-sm" rows={4} />
+                {:else if qrType === 'wifi'}
+                  <div class="space-y-3">
+                    <div>
+                      <Label class="text-xs mb-1 block text-muted-foreground">Network name (SSID)</Label>
+                      <Input bind:value={wifiSsid} placeholder="MyNetwork" />
+                    </div>
+                    <div>
+                      <Label class="text-xs mb-1 block text-muted-foreground">Password</Label>
+                      <Input bind:value={wifiPassword} placeholder="••••••••" type="text" />
+                    </div>
+                    <div>
+                      <Label class="text-xs mb-1 block text-muted-foreground">Encryption</Label>
+                      <Select bind:value={wifiEncryption}>
+                        <SelectTrigger class="w-full">Select</SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="WPA">WPA/WPA2</SelectItem>
+                          <SelectItem value="WEP">WEP</SelectItem>
+                          <SelectItem value="nopass">No encryption</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Label class="flex items-center gap-2 cursor-pointer">
+                      <Switch bind:checked={wifiHidden} />
+                      <span>Hidden network</span>
+                    </Label>
+                  </div>
+                {:else if qrType === 'email'}
+                  <div class="space-y-3">
+                    <div>
+                      <Label class="text-xs mb-1 block text-muted-foreground">Recipient</Label>
+                      <Input bind:value={emailTo} placeholder="email@example.com" type="email" />
+                    </div>
+                    <div>
+                      <Label class="text-xs mb-1 block text-muted-foreground">Subject (optional)</Label>
+                      <Input bind:value={emailSubject} placeholder="Greetings" />
+                    </div>
+                    <div>
+                      <Label class="text-xs mb-1 block text-muted-foreground">Body (optional)</Label>
+                      <Textarea bind:value={emailBody} rows={3} placeholder="Hello..." />
+                    </div>
+                  </div>
+                {:else if qrType === 'sms'}
+                  <div class="space-y-3">
+                    <div>
+                      <Label class="text-xs mb-1 block text-muted-foreground">Phone number</Label>
+                      <Input bind:value={smsNumber} placeholder="+1234567890" />
+                    </div>
+                    <div>
+                      <Label class="text-xs mb-1 block text-muted-foreground">Message</Label>
+                      <Textarea bind:value={smsMessage} rows={3} placeholder="Hello..." />
+                    </div>
+                  </div>
+                {:else if qrType === 'location'}
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label class="text-xs mb-1 block text-muted-foreground">Latitude</Label>
+                      <Input bind:value={locLat} placeholder="37.7749" />
+                    </div>
+                    <div>
+                      <Label class="text-xs mb-1 block text-muted-foreground">Longitude</Label>
+                      <Input bind:value={locLng} placeholder="-122.4194" />
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" class="mt-3 w-full" onclick={useMyLocation}>
+                    {#if locating}
+                      <Loader2 class="h-4 w-4 animate-spin mr-2" />
+                      Locating...
+                    {:else}
+                      <MapPin class="h-4 w-4 mr-2" />
+                      Use my current location
+                    {/if}
+                  </Button>
+                {:else if qrType === 'contact'}
+                  <div class="space-y-3">
+                    <div>
+                      <Label class="text-xs mb-1 block text-muted-foreground">Full name</Label>
+                      <Input bind:value={contactName} placeholder="Jane Doe" />
+                    </div>
+                    <div>
+                      <Label class="text-xs mb-1 block text-muted-foreground">Phone (optional)</Label>
+                      <Input bind:value={contactPhone} placeholder="+1234567890" />
+                    </div>
+                    <div>
+                      <Label class="text-xs mb-1 block text-muted-foreground">Email (optional)</Label>
+                      <Input bind:value={contactEmail} placeholder="hello@example.com" type="email" />
+                    </div>
+                    <div>
+                      <Label class="text-xs mb-1 block text-muted-foreground">Organization (optional)</Label>
+                      <Input bind:value={contactOrg} placeholder="Acme Inc." />
+                    </div>
+                    <div>
+                      <Label class="text-xs mb-1 block text-muted-foreground">Website (optional)</Label>
+                      <Input bind:value={contactUrl} placeholder="https://example.com" />
+                    </div>
+                  </div>
+                {/if}
+              </div>
+
+              <!-- Customization -->
+              <Separator class="my-2" />
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label class="text-sm font-medium mb-2 block">Foreground Color</Label>
+                  <input type="color" bind:value={qrColor} class="w-full h-10 rounded-lg border border-border bg-transparent cursor-pointer" />
+                </div>
+                <div>
+                  <Label class="text-sm font-medium mb-2 block">Background Color</Label>
+                  <input type="color" bind:value={qrBgColor} class="w-full h-10 rounded-lg border border-border bg-transparent cursor-pointer" />
+                </div>
+                <div>
+                  <Label class="text-sm font-medium mb-2 block">Size: {qrSize}px</Label>
+                  <input type="range" bind:value={qrSize} min={128} max={512} step={32} class="w-full" />
+                </div>
+                <div>
+                  <Label class="text-sm font-medium mb-2 block">Margin: {qrMargin}</Label>
+                  <input type="range" bind:value={qrMargin} min={0} max={10} step={1} class="w-full" />
+                </div>
+              </div>
+
+              <!-- Generate Button -->
+              <Button class="w-full mt-2" size="lg" onclick={generateQRCode} disabled={!isFormValid() || isGenerating}>
+                {#if isGenerating}
+                  <Loader2 class="h-4 w-4 animate-spin mr-2" />
+                  Generating...
+                {:else}
+                  <QrCode class="h-4 w-4 mr-2" />
+                  Generate QR Code
+                {/if}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <!-- Preview -->
+        {#if qrDataUrl}
+          <Card>
+            <CardHeader class="pb-2">
+              <CardTitle class="flex items-center gap-2">
+                <Image class="h-5 w-5 text-primary" />
+                Preview
+              </CardTitle>
+            </CardHeader>
+            <CardContent class="pt-0">
+              <div class="flex flex-col items-center gap-4">
+                <div class="bg-white p-4 rounded-lg shadow-sm">
+                  <img src={qrDataUrl} alt="Generated QR Code" class="mx-auto" style="max-width: 100%; height: auto;" />
+                </div>
+                <div class="flex flex-wrap gap-2 justify-center w-full">
+                  <Button onclick={downloadQRCode}>
+                    <Download class="h-4 w-4 mr-2" />
+                    Download PNG
+                  </Button>
+                  <Button variant="outline" onclick={shareQRCode}>
+                    <Share2 class="h-4 w-4 mr-2" />
+                    Share
+                  </Button>
+                  <Button variant="outline" onclick={() => copyToClipboard(qrInput)}>
+                    <Copy class="h-4 w-4 mr-2" />
+                    Copy Data
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        {/if}
+      </div>
+    </TabsContent>
+
+    <!-- HISTORY TAB -->
+    <TabsContent value="history" class="animate-in fade-in-0 duration-200" forceMount>
+      <div class="max-w-2xl mx-auto w-full">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-semibold flex items-center gap-2">
+            <History class="h-5 w-5" />
+            History
+          </h2>
+          {#if history.length > 0}
+            <Button variant="ghost" size="sm" onclick={clearHistory}>
+              <Trash2 class="h-4 w-4 mr-1" />
+              Clear All
+            </Button>
+          {/if}
+        </div>
+
+        {#if !settings.showHistory && history.length === 0}
+          <Card class="py-12 text-center">
+            <CardContent>
+              <Settings class="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+              <h3 class="text-lg font-medium mb-1">History is disabled</h3>
+              <p class="text-muted-foreground text-sm">Enable history in Settings to record your scans and creations</p>
+            </CardContent>
+          </Card>
+        {:else if history.length === 0}
+          <Card class="py-12 text-center">
+            <CardContent>
+              <History class="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+              <h3 class="text-lg font-medium mb-1">No history yet</h3>
+              <p class="text-muted-foreground text-sm">Scan or create QR codes to see them here</p>
+            </CardContent>
+          </Card>
+        {:else}
+          <ScrollArea class="h-[calc(100vh-200px)] min-h-[300px]">
+            <div class="space-y-3">
+              {#each history as item (item.id)}
+                <Card class="hover:shadow-md transition-shadow">
+                  <CardContent class="p-4">
+                    <div class="flex items-start gap-3">
+                      <div
+                        class={cn(
+                          'flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center',
+                          item.type === 'scan'
+                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                            : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                        )}
+                      >
+                        {#if item.type === 'scan'}
+                          <Camera class="h-5 w-5" />
+                        {:else}
+                          <QrCode class="h-5 w-5" />
+                        {/if}
+                      </div>
+
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                          <Badge variant={item.type === 'scan' ? 'default' : 'secondary'} class="text-xs">
+                            {item.type === 'scan' ? 'Scanned' : 'Created'}
+                          </Badge>
+                          {#if item.qrType}
+                            <Badge variant="outline" class="text-xs">
+                              {#if getQRTypeIcon(item.qrType) === Link2}
+                                <Link2 class="h-3 w-3 mr-1" />
+                              {:else if getQRTypeIcon(item.qrType) === FileText}
+                                <FileText class="h-3 w-3 mr-1" />
+                              {:else if getQRTypeIcon(item.qrType) === Wifi}
+                                <Wifi class="h-3 w-3 mr-1" />
+                              {:else if getQRTypeIcon(item.qrType) === Mail}
+                                <Mail class="h-3 w-3 mr-1" />
+                              {:else if getQRTypeIcon(item.qrType) === Phone}
+                                <Phone class="h-3 w-3 mr-1" />
+                              {:else if getQRTypeIcon(item.qrType) === MessageSquare}
+                                <MessageSquare class="h-3 w-3 mr-1" />
+                              {:else if getQRTypeIcon(item.qrType) === MapPin}
+                                <MapPin class="h-3 w-3 mr-1" />
+                              {:else if getQRTypeIcon(item.qrType) === User}
+                                <User class="h-3 w-3 mr-1" />
+                              {/if}
+                              {getQRTypeLabel(item.qrType)}
+                            </Badge>
+                          {/if}
+                          <span class="text-xs text-muted-foreground ml-auto">{formatTimestamp(item.timestamp)}</span>
+                        </div>
+
+                        <p class="mt-2 text-sm break-all font-mono text-foreground/80">{item.content}</p>
+
+                        <div class="flex items-center gap-2 mt-3">
+                          <Button variant="ghost" size="icon" onclick={() => copyToClipboard(item.content)}>
+                            <Copy class="h-4 w-4" />
+                            <span class="sr-only">Copy</span>
+                          </Button>
+                          {#if item.dataUrl}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onclick={() => {
+                                generatedQrDataUrl = item.dataUrl;
+                                showQrDialog = true;
+                              }}
+                            >
+                              <Eye class="h-4 w-4" />
+                              <span class="sr-only">View QR</span>
+                            </Button>
+                          {/if}
+                          <Button variant="ghost" size="icon" onclick={() => deleteHistoryItem(item.id)}>
+                            <Trash2 class="h-4 w-4 text-destructive" />
+                            <span class="sr-only">Delete</span>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              {/each}
+            </div>
+          </ScrollArea>
+        {/if}
+      </div>
+    </TabsContent>
+
+    <!-- SETTINGS TAB -->
+    <TabsContent value="settings" class="animate-in fade-in-0 duration-200" forceMount>
+      <div class="max-w-2xl mx-auto w-full space-y-6">
+        <!-- Appearance -->
+        <Card>
+          <CardHeader>
+            <CardTitle class="flex items-center gap-2">
+              <Monitor class="h-5 w-5 text-primary" />
+              Appearance
+            </CardTitle>
+          </CardHeader>
+          <CardContent class="pt-0 space-y-4">
+            <div class="space-y-3">
+              <label class="flex items-center justify-between cursor-pointer p-3 rounded-lg border border-border hover:bg-accent transition-colors">
+                <div class="flex items-center gap-3">
+                  <Sun class="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p class="font-medium">Light</p>
+                    <p class="text-sm text-muted-foreground">Always use light mode</p>
+                  </div>
+                </div>
+                <input
+                  type="radio"
+                  name="theme"
+                  value="light"
+                  checked={settings.theme === 'light'}
+                  onchange={() => {
+                    settings = { ...settings, theme: 'light' };
+                    saveSettings();
+                  }}
+                  class="sr-only"
+                />
+              </label>
+              <label class="flex items-center justify-between cursor-pointer p-3 rounded-lg border border-border hover:bg-accent transition-colors">
+                <div class="flex items-center gap-3">
+                  <Moon class="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p class="font-medium">Dark</p>
+                    <p class="text-sm text-muted-foreground">Always use dark mode</p>
+                  </div>
+                </div>
+                <input
+                  type="radio"
+                  name="theme"
+                  value="dark"
+                  checked={settings.theme === 'dark'}
+                  onchange={() => {
+                    settings = { ...settings, theme: 'dark' };
+                    saveSettings();
+                  }}
+                  class="sr-only"
+                />
+              </label>
+              <label class="flex items-center justify-between cursor-pointer p-3 rounded-lg border border-border hover:bg-accent transition-colors">
+                <div class="flex items-center gap-3">
+                  <Monitor class="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p class="font-medium">System</p>
+                    <p class="text-sm text-muted-foreground">Follow system preference</p>
+                  </div>
+                </div>
+                <input
+                  type="radio"
+                  name="theme"
+                  value="system"
+                  checked={settings.theme === 'system'}
+                  onchange={() => {
+                    settings = { ...settings, theme: 'system' };
+                    saveSettings();
+                  }}
+                  class="sr-only"
+                />
+              </label>
+            </div>
+          </CardContent>
+        </Card>
+
+        <!-- Scan Settings -->
+        <Card>
+          <CardHeader>
+            <CardTitle class="flex items-center gap-2">
+              <Camera class="h-5 w-5 text-primary" />
+              Scanning
+            </CardTitle>
+          </CardHeader>
+          <CardContent class="pt-0 space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium">Vibration on scan</p>
+                <p class="text-sm text-muted-foreground">Haptic feedback when QR code is detected</p>
+              </div>
+              <Switch
+                checked={settings.vibration}
+                onchange={e => {
+                  settings = { ...settings, vibration: e.detail };
+                  saveSettings();
+                }}
+              />
+            </div>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium">Sound on scan</p>
+                <p class="text-sm text-muted-foreground">Play a beep when QR code is detected</p>
+              </div>
+              <Switch
+                checked={settings.sound}
+                onchange={e => {
+                  settings = { ...settings, sound: e.detail };
+                  saveSettings();
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <!-- History Settings -->
+        <Card>
+          <CardHeader>
+            <CardTitle class="flex items-center gap-2">
+              <History class="h-5 w-5 text-primary" />
+              History
+            </CardTitle>
+          </CardHeader>
+          <CardContent class="pt-0 space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium">Save history</p>
+                <p class="text-sm text-muted-foreground">Keep a record of scanned and created QR codes</p>
+              </div>
+              <Switch
+                checked={settings.showHistory}
+                onchange={e => {
+                  settings = { ...settings, showHistory: e.detail };
+                  saveSettings();
+                }}
+              />
+            </div>
+            {#if settings.showHistory && history.length > 0}
+              <Button variant="outline" onclick={clearHistory} class="w-full">
+                <Trash2 class="h-4 w-4 mr-2" />
+                Clear All History ({history.length} items)
+              </Button>
+            {/if}
+          </CardContent>
+        </Card>
+
+        <!-- About -->
+        <Card>
+          <CardHeader>
+            <CardTitle class="flex items-center gap-2">
+              <Info class="h-5 w-5 text-primary" />
+              About
+            </CardTitle>
+          </CardHeader>
+          <CardContent class="pt-0 space-y-4">
+            <div class="space-y-2 text-sm">
+              <p class="font-medium">QR Code Reader & Creator</p>
+              <p class="text-muted-foreground">Version 1.0.0</p>
+              <p class="text-muted-foreground">A Progressive Web App for scanning and creating QR codes</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <Badge variant="outline">PWA Ready</Badge>
+              <Badge variant="outline">Offline Support</Badge>
+              <Badge variant="outline">No Tracking</Badge>
+              <Badge variant="outline">Open Source</Badge>
+            </div>
+            <div class="pt-2 border-t">
+              <p class="text-xs text-muted-foreground text-center">Built with SvelteKit, shadcn-svelte, Tailwind CSS, and Lucide icons</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </TabsContent>
+  </main>
+</Tabs>
+
+<!-- QR Code Dialog -->
+<Dialog open={showQrDialog} onclose={() => (showQrDialog = false)}>
+  <DialogContent class="max-w-sm">
+    <DialogHeader>
+      <DialogTitle>Generated QR Code</DialogTitle>
+      <DialogDescription>Scan or share this QR code</DialogDescription>
+    </DialogHeader>
+    <div class="flex flex-col items-center gap-4 py-4">
+      {#if generatedQrDataUrl}
+        <div class="bg-white p-4 rounded-lg shadow-sm">
+          <img src={generatedQrDataUrl} alt="QR Code" />
+        </div>
+        <div class="flex flex-wrap gap-2 justify-center w-full">
+          <Button onclick={downloadQRCode} class="w-full sm:w-auto">
+            <Download class="h-4 w-4 mr-2" />
+            Download
+          </Button>
+          <Button variant="outline" onclick={shareQRCode} class="w-full sm:w-auto">
+            <Share2 class="h-4 w-4 mr-2" />
+            Share
+          </Button>
+          <Button variant="outline" onclick={() => copyToClipboard(qrInput)} class="w-full sm:w-auto">
+            <Copy class="h-4 w-4 mr-2" />
+            Copy Data
+          </Button>
+        </div>
+      {/if}
+    </div>
+  </DialogContent>
+</Dialog>
+
+<style>
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(var(--muted-foreground) / 0.5);
+  }
+
+  *:focus-visible {
+    outline: 2px solid oklch(var(--ring));
+    outline-offset: 2px;
+  }
+
+  @media (display-mode: standalone) {
+    header {
+      padding-top: env(safe-area-inset-top);
+    }
+    main {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+  }
+</style>
