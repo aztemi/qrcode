@@ -40,6 +40,7 @@
     FileText,
     Eye,
     MessageSquare,
+    Upload,
     User
   } from '@lucide/svelte';
 
@@ -81,6 +82,7 @@
   let html5Qrcode = $state<Html5Qrcode | null>(null);
   let selectedCameraId = $state<string | null>(null);
   let cameras = $state<MediaDeviceInfo[]>([]);
+  let isScanningFile = $state(false);
 
   // Create tab state
   let qrType = $state<QRType>('url');
@@ -180,6 +182,42 @@
       }
     } catch (e) {
       console.error('Failed to get cameras:', e);
+    }
+  }
+
+  async function scanImageFile(file: File) {
+    if (!browser || isScanningFile) return;
+
+    isScanningFile = true;
+    scanResult = null;
+
+    try {
+      const qrCode = new Html5Qrcode('qr-reader-temp');
+      const result = await qrCode.scanFileV2(file, {
+        showImage: false,
+        experimentalFeatures: undefined
+      });
+
+      onScanSuccess(result.decodedText);
+      qrCode.clear();
+    } catch {
+      scanResult = null;
+    } finally {
+      isScanningFile = false;
+    }
+  }
+
+  function triggerFileInput() {
+    const input = document.getElementById('qr-file-input') as HTMLInputElement;
+    input?.click();
+  }
+
+  function handleFileChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) {
+      scanImageFile(file);
+      input.value = '';
     }
   }
 
@@ -664,40 +702,59 @@
                     </div>
                   {/if}
                 </div>
+              </CardContent>
+            </Card>
 
-                {#if scanResult && !isScanning}
-                  <div
-                    class="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg animate-in slide-in-from-bottom-2 duration-300"
-                  >
-                    <div class="flex items-start gap-3">
-                      <Check class="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-                      <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-green-800 dark:text-green-200">QR Code Detected!</p>
-                        <p class="text-sm text-green-700 dark:text-green-300 mt-1 break-all">{scanResult}</p>
-                        <div class="flex gap-2 mt-3">
-                          <Button variant="outline" size="sm" onclick={() => copyToClipboard(scanResult!)}>
-                            <Copy class="h-3 w-3 mr-1" />
-                            Copy
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onclick={() => {
-                              activeTab = 'history';
-                              scanResult = null;
-                            }}
-                          >
-                            <History class="h-3 w-3 mr-1" />
-                            View History
-                          </Button>
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="icon" onclick={() => (scanResult = null)}>
-                        <XIcon class="h-4 w-4" />
+            <!-- Scan Result Actions -->
+            {#if scanResult && !isScanning}
+              <div
+                class="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg animate-in slide-in-from-bottom-2 duration-300"
+              >
+                <div class="flex items-start gap-3">
+                  <Check class="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-green-800 dark:text-green-200">QR Code Detected!</p>
+                    <p class="text-sm text-green-700 dark:text-green-300 mt-1 break-all">{scanResult}</p>
+                    <div class="flex gap-2 mt-3">
+                      <Button variant="outline" size="sm" onclick={() => copyToClipboard(scanResult!)}>
+                        <Copy class="h-3 w-3 mr-1" />
+                        Copy
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onclick={() => {
+                          activeTab = 'history';
+                          scanResult = null;
+                        }}
+                      >
+                        <History class="h-3 w-3 mr-1" />
+                        View History
                       </Button>
                     </div>
                   </div>
-                {/if}
+                  <Button variant="ghost" size="icon" onclick={() => (scanResult = null)}>
+                    <XIcon class="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            {/if}
+
+            <!-- Scan from Image -->
+            <input id="qr-file-input" type="file" accept="image/*" class="hidden" onchange={handleFileChange} />
+            <div id="qr-reader-temp" class="hidden"></div>
+
+            <Card>
+              <CardContent class="pt-6">
+                <Button variant="outline" class="w-full" onclick={triggerFileInput} disabled={isScanningFile || isScanning}>
+                  {#if isScanningFile}
+                    <Loader2 class="h-4 w-4 animate-spin mr-2" />
+                    Scanning image...
+                  {:else}
+                    <Upload class="h-4 w-4 mr-2" />
+                    Scan QR from Image
+                  {/if}
+                </Button>
               </CardContent>
             </Card>
 
@@ -718,35 +775,6 @@
                       {/each}
                     </SelectContent>
                   </Select>
-                </CardContent>
-              </Card>
-            {/if}
-
-            <!-- Scan Result Actions -->
-            {#if scanResult && !isScanning}
-              <Card>
-                <CardContent class="pt-6">
-                  <div class="space-y-2">
-                    <Button class="w-full" onclick={() => copyToClipboard(scanResult!)}>
-                      <Copy class="h-4 w-4 mr-2" />
-                      Copy to Clipboard
-                    </Button>
-                    <Button
-                      variant="outline"
-                      class="w-full"
-                      onclick={() => {
-                        activeTab = 'history';
-                        scanResult = null;
-                      }}
-                    >
-                      <History class="h-4 w-4 mr-2" />
-                      View in History
-                    </Button>
-                    <Button variant="ghost" class="w-full text-destructive" onclick={() => (scanResult = null)}>
-                      <XIcon class="h-4 w-4 mr-2" />
-                      Dismiss
-                    </Button>
-                  </div>
                 </CardContent>
               </Card>
             {/if}
