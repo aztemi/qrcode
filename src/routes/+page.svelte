@@ -83,7 +83,7 @@
   let selectedCameraId = $state<string | null>(null);
   let cameras = $state<MediaDeviceInfo[]>([]);
   let isScanningFile = $state(false);
-
+  let copiedId = $state<string | null>(null);
   // Create tab state
   let qrType = $state<QRType>('url');
   let qrInput = $state('');
@@ -469,8 +469,12 @@
     return date.toLocaleDateString();
   }
 
-  function copyToClipboard(text: string) {
+  function copyToClipboard(text: string, id: string) {
     navigator.clipboard.writeText(text);
+    copiedId = id;
+    setTimeout(() => {
+      copiedId = null;
+    }, 2000);
   }
 
   async function downloadQRCode() {
@@ -716,9 +720,14 @@
                     <p class="text-sm font-medium text-green-800 dark:text-green-200">QR Code Detected!</p>
                     <p class="text-sm text-green-700 dark:text-green-300 mt-1 break-all">{scanResult}</p>
                     <div class="flex gap-2 mt-3">
-                      <Button variant="outline" size="sm" onclick={() => copyToClipboard(scanResult!)}>
-                        <Copy class="h-3 w-3 mr-1" />
-                        Copy
+                      <Button variant="outline" size="sm" onclick={() => copyToClipboard(scanResult!, 'scan-inline')}>
+                        {#if copiedId === 'scan-inline'}
+                          <Check class="h-3 w-3 mr-1" />
+                          Copied!
+                        {:else}
+                          <Copy class="h-3 w-3 mr-1" />
+                          Copy
+                        {/if}
                       </Button>
                       <Button
                         variant="outline"
@@ -994,9 +1003,14 @@
                       <Share2 class="h-4 w-4 mr-2" />
                       Share
                     </Button>
-                    <Button variant="outline" onclick={() => copyToClipboard(qrInput)}>
-                      <Copy class="h-4 w-4 mr-2" />
-                      Copy Data
+                    <Button variant="outline" onclick={() => copyToClipboard(qrInput, 'preview-copy')}>
+                      {#if copiedId === 'preview-copy'}
+                        <Check class="h-4 w-4 mr-2" />
+                        Copied!
+                      {:else}
+                        <Copy class="h-4 w-4 mr-2" />
+                        Copy Data
+                      {/if}
                     </Button>
                   </div>
                 </div>
@@ -1091,8 +1105,12 @@
                           <p class="mt-2 text-sm break-all font-mono text-foreground/80">{item.content}</p>
 
                           <div class="flex items-center gap-2 mt-3">
-                            <Button variant="ghost" size="icon" onclick={() => copyToClipboard(item.content)}>
-                              <Copy class="h-4 w-4" />
+                            <Button variant="ghost" size="icon" onclick={() => copyToClipboard(item.content, `history-${item.id}`)}>
+                              {#if copiedId === `history-${item.id}`}
+                                <Check class="h-4 w-4 text-green-600" />
+                              {:else}
+                                <Copy class="h-4 w-4" />
+                              {/if}
                               <span class="sr-only">Copy</span>
                             </Button>
                             {#if item.dataUrl}
@@ -1320,9 +1338,14 @@
             <Share2 class="h-4 w-4 mr-2" />
             Share
           </Button>
-          <Button variant="outline" onclick={() => copyToClipboard(qrInput)} class="w-full sm:w-auto">
-            <Copy class="h-4 w-4 mr-2" />
-            Copy Data
+          <Button variant="outline" onclick={() => copyToClipboard(qrInput, 'dialog-copy')} class="w-full sm:w-auto">
+            {#if copiedId === 'dialog-copy'}
+              <Check class="h-4 w-4 mr-2" />
+              Copied!
+            {:else}
+              <Copy class="h-4 w-4 mr-2" />
+              Copy Data
+            {/if}
           </Button>
         </div>
       {/if}
