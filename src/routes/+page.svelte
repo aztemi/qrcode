@@ -507,73 +507,73 @@
 
 <div class="w-full flex flex-col min-h-screen bg-background">
   <!-- Header with Desktop Tabs -->
-  <header class="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+  <header class="w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
     <div class="mx-auto max-w-[1000px]">
       <div class="flex h-14 items-center justify-center px-4">
         <h1 class="text-xl font-semibold tracking-tight">QR Code</h1>
       </div>
     </div>
+  </header>
 
-    <!-- Desktop Tabs (top) -->
-    <div class="hidden md:block border-b bg-background/95 backdrop-blur">
-      <div class="mx-auto max-w-[1000px]">
-        <div class="flex h-12 justify-center" role="tablist">
-          <button
-            class={cn(
-              'relative flex items-center gap-2 px-6 py-2 text-sm font-medium transition-colors',
-              activeTab === 'scan' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-            )}
-            onclick={() => (activeTab = 'scan')}
-          >
-            <Camera class="h-4 w-4" />
-            <span>Scan</span>
-            {#if activeTab === 'scan'}
-              <span class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></span>
-            {/if}
-          </button>
-          <button
-            class={cn(
-              'relative flex items-center gap-2 px-6 py-2 text-sm font-medium transition-colors',
-              activeTab === 'create' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-            )}
-            onclick={() => (activeTab = 'create')}
-          >
-            <QrCode class="h-4 w-4" />
-            <span>Create</span>
-            {#if activeTab === 'create'}
-              <span class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></span>
-            {/if}
-          </button>
-          <button
-            class={cn(
-              'relative flex items-center gap-2 px-6 py-2 text-sm font-medium transition-colors',
-              activeTab === 'history' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-            )}
-            onclick={() => (activeTab = 'history')}
-          >
-            <History class="h-4 w-4" />
-            <span>History</span>
-            {#if activeTab === 'history'}
-              <span class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></span>
-            {/if}
-          </button>
-          <button
-            class={cn(
-              'relative flex items-center gap-2 px-6 py-2 text-sm font-medium transition-colors',
-              activeTab === 'settings' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-            )}
-            onclick={() => (activeTab = 'settings')}
-          >
-            <Settings class="h-4 w-4" />
-            <span>Settings</span>
-            {#if activeTab === 'settings'}
-              <span class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></span>
-            {/if}
-          </button>
-        </div>
+  <!-- Desktop Tabs (top) -->
+  <div class="hidden md:block sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
+    <div class="mx-auto max-w-[1000px]">
+      <div class="flex h-12 justify-center" role="tablist">
+        <button
+          class={cn(
+            'relative flex items-center gap-2 px-6 py-2 text-sm font-medium transition-colors',
+            activeTab === 'scan' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+          )}
+          onclick={() => (activeTab = 'scan')}
+        >
+          <Camera class="h-4 w-4" />
+          <span>Scan</span>
+          {#if activeTab === 'scan'}
+            <span class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></span>
+          {/if}
+        </button>
+        <button
+          class={cn(
+            'relative flex items-center gap-2 px-6 py-2 text-sm font-medium transition-colors',
+            activeTab === 'create' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+          )}
+          onclick={() => (activeTab = 'create')}
+        >
+          <QrCode class="h-4 w-4" />
+          <span>Create</span>
+          {#if activeTab === 'create'}
+            <span class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></span>
+          {/if}
+        </button>
+        <button
+          class={cn(
+            'relative flex items-center gap-2 px-6 py-2 text-sm font-medium transition-colors',
+            activeTab === 'history' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+          )}
+          onclick={() => (activeTab = 'history')}
+        >
+          <History class="h-4 w-4" />
+          <span>History</span>
+          {#if activeTab === 'history'}
+            <span class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></span>
+          {/if}
+        </button>
+        <button
+          class={cn(
+            'relative flex items-center gap-2 px-6 py-2 text-sm font-medium transition-colors',
+            activeTab === 'settings' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+          )}
+          onclick={() => (activeTab = 'settings')}
+        >
+          <Settings class="h-4 w-4" />
+          <span>Settings</span>
+          {#if activeTab === 'settings'}
+            <span class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></span>
+          {/if}
+        </button>
       </div>
     </div>
-  </header>
+  </div>
 
   <!-- Mobile Tabs (bottom) -->
   <div class="md:hidden border-t bg-background/95 backdrop-blur sticky bottom-0 z-50" style="padding-bottom: env(safe-area-inset-bottom, 0px)">
@@ -613,13 +613,6 @@
       >
         <History class="h-5 w-5" />
         <span>History</span>
-        {#if history.length > 0}
-          <span
-            class="absolute -top-0.5 right-1 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground px-1"
-          >
-            {history.length > 99 ? '99+' : history.length}
-          </span>
-        {/if}
         {#if activeTab === 'history'}
           <span class="absolute top-0 left-0 right-0 h-0.5 bg-primary"></span>
         {/if}
