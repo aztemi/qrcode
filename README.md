@@ -1,42 +1,57 @@
-# sv
+# QR Code Reader & Creator
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A Progressive Web App for scanning and generating QR codes, built with SvelteKit.
 
-## Creating a project
+## Features
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **Scan QR codes** via camera or from image files
+- **Create QR codes** for URLs, plain text, WiFi networks, emails, phone numbers, SMS, locations, and vCard contacts
+- **Customize** foreground/background colors, size, and margin
+- **History** of scanned and created QR codes (stored locally)
+- **Theme support** — light, dark, and system modes
+- **PWA-ready** with service worker and offline support
+- **Responsive** — mobile bottom tabs, desktop top tabs
+- Haptic vibration and sound feedback on scan
+
+## Tech Stack
+
+- SvelteKit + Svelte 5
+- Tailwind CSS v4 + shadcn-svelte
+- Lucide icons
+- qrcode — QR code generation
+- html5-qrcode — camera/image scanning
+- vite-plugin-pwa — PWA support
+
+## Getting Started
 
 ```sh
-# create a new project
-npx sv create my-app
-```
-
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-npx sv@0.16.1 create --template minimal --types ts --add prettier tailwindcss="plugins:none" --install npm qrcode
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
+npm install
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
-
-To create a production version of your app:
+## Building for Production
 
 ```sh
 npm run build
 ```
 
-You can preview the production build with `npm run preview`.
+The output will be in the `build` directory. You can preview it locally:
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+```sh
+npm run preview
+```
+
+## Scripts
+
+| Command           | Description                    |
+| ----------------- | ------------------------------ |
+| `npm run dev`     | Start dev server               |
+| `npm run build`   | Production build               |
+| `npm run preview` | Preview production build       |
+| `npm run check`   | Type-check with svelte-check   |
+| `npm run lint`    | Check formatting with Prettier |
+| `npm run format`  | Fix formatting with Prettier   |
+
+## License
+
+[GPL-3.0](./LICENSE)
