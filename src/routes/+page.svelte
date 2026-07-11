@@ -193,13 +193,16 @@
 
   async function requestCameraAndEnumerate() {
     if (!browser) return;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      stream.getTracks().forEach(t => t.stop());
-    } catch {
-      // getUserMedia may fail in some environments; continue anyway
-    }
     await getCameras();
+    if (cameras.length === 0) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach(t => t.stop());
+      } catch {
+        // getUserMedia may fail in some environments; continue anyway
+      }
+      await getCameras();
+    }
   }
 
   async function scanImageFile(file: File) {
