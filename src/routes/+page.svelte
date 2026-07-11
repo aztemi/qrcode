@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { browser } from '$app/environment';
   import { cn } from '$lib/utils';
+  import { version } from '../../package.json';
 
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
@@ -118,6 +119,9 @@
   // Animation states
   let scanAnimation = $state(false);
   let createAnimation = $state(false);
+
+  // footer
+  const year = new Date().getFullYear();
 
   // Initialize
   onMount(() => {
@@ -1287,7 +1291,7 @@
             <CardContent class="pt-0 space-y-4">
               <div class="space-y-2 text-sm">
                 <p class="font-medium">QR Code Reader & Creator</p>
-                <p class="text-muted-foreground">Version 1.0.0</p>
+                <p class="text-muted-foreground">Version {version}</p>
                 <p class="text-muted-foreground">A Progressive Web App for scanning and creating QR codes</p>
               </div>
               <div class="flex flex-wrap gap-2">
@@ -1297,7 +1301,7 @@
                 <Badge variant="outline">Open Source</Badge>
               </div>
               <div class="pt-2 border-t">
-                <p class="text-xs text-muted-foreground text-center">Built with SvelteKit, shadcn-svelte, Tailwind CSS, and Lucide icons</p>
+                <p class="text-xs text-muted-foreground text-center">© {year} AZTemi</p>
               </div>
             </CardContent>
           </Card>
