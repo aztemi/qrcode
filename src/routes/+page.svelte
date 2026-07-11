@@ -86,6 +86,7 @@
   let cameras = $state<MediaDeviceInfo[]>([]);
   let isScanningFile = $state(false);
   let copiedId = $state<string | null>(null);
+  let scanError = $state<string | null>(null);
   // Create tab state
   let qrType = $state<QRType>('url');
   let qrInput = $state('');
@@ -191,18 +192,16 @@
     }
   }
 
+  // On mount we only enumerateDevices() (transport-only, no permission
+  // prompt). We request camera permission lazily on the first startScanning()
+  // call (user-initiated), so iOS Safari does not re-prompt on every reload.
+  function hasRealCameras() {
+    return cameras.length > 0 && cameras.every(c => c.label && c.label.length > 0);
+  }
+
   async function requestCameraAndEnumerate() {
     if (!browser) return;
     await getCameras();
-    if (cameras.length === 0) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach(t => t.stop());
-      } catch {
-        // getUserMedia may fail in some environments; continue anyway
-      }
-      await getCameras();
-    }
   }
 
   async function scanImageFile(file: File) {
@@ -239,12 +238,59 @@
   }
 
   async function startScanning() {
-    if (!browser || isScanning || !selectedCameraId) return;
+    if (!browser || isScanning) return;
 
     try {
       isScanning = true;
       scanAnimation = true;
       scanResult = null;
+      scanError = null;
+
+      // Ensure we have a real deviceId with permission granted.
+      // On iOS Safari, getUserMedia() permission is not reliably persisted
+      // across reloads, so we trigger it here on user intent rather than
+      // at mount time.
+      if (!selectedCameraId || !hasRealCameras()) {
+        try {
+          const tmpStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: 'environment' } }
+          });
+          // Pull a real deviceId from the granted track
+          const track = tmpStream.getVideoTracks()[0];
+          const settings = track.getSettings();
+          if (settings.deviceId) selectedCameraId = settings.deviceId;
+          // Refresh labels/deviceIds now that permission is granted
+          tmpStream.getTracks().forEach(t => t.stop());
+          await getCameras();
+          if (!selectedCameraId && cameras.length > 0) {
+            const back = cameras.find(c => /back|rear|environment/i.test(c.label));
+            selectedCameraId = (back ?? cameras[cameras.length - 1]).deviceId;
+          }
+        } catch (e) {
+          // Expected on devices with no camera (NotFoundError) or when the
+          // user denies permission (NotAllowedError/SecurityError). Surface a
+          // friendly message instead of a noisy console error.
+          let reason = 'Camera unavailable.';
+          if (e instanceof DOMException) {
+            if (e.name === 'NotFoundError' || e.name === 'OverconstrainedError') {
+              reason = 'No camera found on this device.';
+            } else if (e.name === 'NotAllowedError' || e.name === 'SecurityError') {
+              reason = 'Camera permission denied.';
+            }
+          }
+          console.warn(reason, e);
+          scanError = reason;
+          isScanning = false;
+          scanAnimation = false;
+          return;
+        }
+      }
+
+      if (!selectedCameraId) {
+        isScanning = false;
+        scanAnimation = false;
+        return;
+      }
 
       html5Qrcode = new Html5Qrcode('qr-reader');
 
@@ -689,19 +735,17 @@
                       class="absolute inset-0 flex flex-col items-center justify-center bg-muted/50 rounded-lg border-2 border-dashed border-border p-4"
                     >
                       <Camera class="h-12 w-12 text-muted-foreground mb-3" />
-                      <p class="text-center text-muted-foreground text-sm">
-                        {selectedCameraId ? 'Tap to start scanning' : 'No camera found'}
+                      <p class="text-center text-sm {scanError ? 'text-destructive' : 'text-muted-foreground'}">
+                        {scanError ? scanError : selectedCameraId ? 'Tap to start scanning' : 'Tap to allow camera access'}
                       </p>
-                      {#if selectedCameraId}
-                        <Button class="mt-3" size="lg" onclick={startScanning} disabled={isGenerating}>
-                          {#if scanAnimation}
-                            <LoaderCircle class="h-4 w-4 animate-spin mr-2" />
-                            Starting...
-                          {:else}
-                            Start Scanning
-                          {/if}
-                        </Button>
-                      {/if}
+                      <Button class="mt-3" size="lg" onclick={startScanning} disabled={isGenerating}>
+                        {#if scanAnimation}
+                          <LoaderCircle class="h-4 w-4 animate-spin mr-2" />
+                          Starting...
+                        {:else}
+                          Start Scanning
+                        {/if}
+                      </Button>
                     </div>
                   {/if}
 
