@@ -46,7 +46,7 @@
   } from '@lucide/svelte';
 
   import QRCode from 'qrcode';
-  import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode';
+  import { Html5Qrcode } from 'html5-qrcode';
 
   // Types
   type Tab = 'scan' | 'create' | 'history' | 'settings';
