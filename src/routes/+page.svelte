@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { browser } from '$app/environment';
   import { cn } from '$lib/utils';
   import { version } from '../../package.json';
@@ -42,7 +42,8 @@
     Eye,
     MessageSquare,
     Upload,
-    User
+    User,
+    RefreshCw
   } from '@lucide/svelte';
 
   import QRCode from 'qrcode';
@@ -182,7 +183,8 @@
       const devices = await navigator.mediaDevices.enumerateDevices();
       cameras = devices.filter(d => d.kind === 'videoinput');
       if (cameras.length > 0 && !selectedCameraId) {
-        selectedCameraId = cameras[0].deviceId;
+        const back = cameras.find(c => /back|rear|environment/i.test(c.label));
+        selectedCameraId = (back ?? cameras[cameras.length - 1]).deviceId;
       }
     } catch (e) {
       console.error('Failed to get cameras:', e);
@@ -270,6 +272,18 @@
       html5Qrcode.stop().catch(console.error);
       isScanning = false;
       scanAnimation = false;
+    }
+  }
+
+  async function switchCamera() {
+    if (cameras.length < 2) return;
+    const idx = cameras.findIndex(c => c.deviceId === selectedCameraId);
+    const next = cameras[(idx + 1) % cameras.length];
+    selectedCameraId = next.deviceId;
+    if (isScanning) {
+      stopScanning();
+      await tick();
+      await startScanning();
     }
   }
 
@@ -706,6 +720,11 @@
                     >
                       <LoaderCircle class="h-4 w-4 animate-spin text-primary" />
                       <span class="text-sm font-medium">Scanning...</span>
+                      {#if cameras.length > 1}
+                        <Button variant="ghost" size="icon" onclick={switchCamera}>
+                          <RefreshCw class="h-4 w-4" />
+                        </Button>
+                      {/if}
                       <Button variant="ghost" size="icon" onclick={stopScanning} class="text-destructive">
                         <XIcon class="h-4 w-4" />
                       </Button>
