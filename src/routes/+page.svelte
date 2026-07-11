@@ -33,7 +33,7 @@
     Phone,
     MapPin,
     Link2,
-    Loader2,
+    LoaderCircle,
     Check,
     X as XIcon,
     Image,
@@ -193,10 +193,7 @@
 
     try {
       const qrCode = new Html5Qrcode('qr-reader-temp');
-      const result = await qrCode.scanFileV2(file, {
-        showImage: false,
-        experimentalFeatures: undefined
-      });
+      const result = await qrCode.scanFileV2(file, false);
 
       onScanSuccess(result.decodedText);
       qrCode.clear();
@@ -518,7 +515,7 @@
     </div>
 
     <!-- Desktop Tabs (top) -->
-    <div class="hidden lg:block border-b bg-background/95 backdrop-blur">
+    <div class="hidden md:block border-b bg-background/95 backdrop-blur">
       <div class="mx-auto max-w-[1000px]">
         <div class="flex h-12 justify-center" role="tablist">
           <button
@@ -579,7 +576,7 @@
   </header>
 
   <!-- Mobile Tabs (bottom) -->
-  <div class="lg:hidden border-t bg-background/95 backdrop-blur sticky bottom-0 z-50" style="padding-bottom: env(safe-area-inset-bottom, 0px)">
+  <div class="md:hidden border-t bg-background/95 backdrop-blur sticky bottom-0 z-50" style="padding-bottom: env(safe-area-inset-bottom, 0px)">
     <div class="flex h-14 w-full" role="tablist">
       <button
         class={cn(
@@ -672,7 +669,7 @@
                       {#if selectedCameraId}
                         <Button class="mt-3" size="lg" onclick={startScanning} disabled={isGenerating}>
                           {#if scanAnimation}
-                            <Loader2 class="h-4 w-4 animate-spin mr-2" />
+                            <LoaderCircle class="h-4 w-4 animate-spin mr-2" />
                             Starting...
                           {:else}
                             Start Scanning
@@ -698,7 +695,7 @@
                     <div
                       class="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-background/90 backdrop-blur px-4 py-2 rounded-full shadow-lg"
                     >
-                      <Loader2 class="h-4 w-4 animate-spin text-primary" />
+                      <LoaderCircle class="h-4 w-4 animate-spin text-primary" />
                       <span class="text-sm font-medium">Scanning...</span>
                       <Button variant="ghost" size="icon" onclick={stopScanning} class="text-destructive">
                         <XIcon class="h-4 w-4" />
@@ -757,7 +754,7 @@
               <CardContent class="pt-6">
                 <Button variant="outline" class="w-full" onclick={triggerFileInput} disabled={isScanningFile || isScanning}>
                   {#if isScanningFile}
-                    <Loader2 class="h-4 w-4 animate-spin mr-2" />
+                    <LoaderCircle class="h-4 w-4 animate-spin mr-2" />
                     Scanning image...
                   {:else}
                     <Upload class="h-4 w-4 mr-2" />
@@ -772,7 +769,7 @@
               <Card>
                 <CardContent class="pt-6">
                   <Label class="text-sm font-medium mb-2 block">Camera</Label>
-                  <Select value={selectedCameraId} onchange={e => (selectedCameraId = e.detail)}>
+                  <Select value={selectedCameraId ?? undefined} onValueChange={v => (selectedCameraId = v ?? null)} type="single">
                     <SelectTrigger class="w-full">
                       {cameras.find(c => c.deviceId === selectedCameraId)?.label || 'Select camera'}
                     </SelectTrigger>
@@ -806,7 +803,7 @@
                 <div>
                   <Label class="text-sm font-medium mb-2 block">QR Code Type</Label>
                   <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {#each ['url', 'text', 'wifi', 'email', 'phone', 'sms', 'location', 'contact'] as type (type)}
+                    {#each ['url', 'text', 'wifi', 'email', 'phone', 'sms', 'location', 'contact'] as QRType[] as type (type)}
                       <button
                         class={cn(
                           'relative p-3 rounded-lg border-2 transition-all duration-200',
@@ -859,7 +856,7 @@
                       </div>
                       <div>
                         <Label class="text-xs mb-1 block text-muted-foreground">Encryption</Label>
-                        <Select bind:value={wifiEncryption}>
+                        <Select bind:value={wifiEncryption} type="single">
                           <SelectTrigger class="w-full">Select</SelectTrigger>
                           <SelectContent>
                             <SelectItem value="WPA">WPA/WPA2</SelectItem>
@@ -912,7 +909,7 @@
                     </div>
                     <Button variant="outline" size="sm" class="mt-3 w-full" onclick={useMyLocation}>
                       {#if locating}
-                        <Loader2 class="h-4 w-4 animate-spin mr-2" />
+                        <LoaderCircle class="h-4 w-4 animate-spin mr-2" />
                         Locating...
                       {:else}
                         <MapPin class="h-4 w-4 mr-2" />
@@ -969,7 +966,7 @@
                 <!-- Generate Button -->
                 <Button class="w-full mt-2" size="lg" onclick={generateQRCode} disabled={!isFormValid() || isGenerating}>
                   {#if isGenerating}
-                    <Loader2 class="h-4 w-4 animate-spin mr-2" />
+                    <LoaderCircle class="h-4 w-4 animate-spin mr-2" />
                     Generating...
                   {:else}
                     <QrCode class="h-4 w-4 mr-2" />
@@ -1118,7 +1115,7 @@
                                 variant="ghost"
                                 size="icon"
                                 onclick={() => {
-                                  generatedQrDataUrl = item.dataUrl;
+                                  generatedQrDataUrl = item.dataUrl ?? null;
                                   showQrDialog = true;
                                 }}
                               >
@@ -1233,8 +1230,8 @@
                 </div>
                 <Switch
                   checked={settings.vibration}
-                  onchange={e => {
-                    settings.vibration = e.detail;
+                  onCheckedChange={v => {
+                    settings.vibration = v;
                     saveSettings();
                   }}
                 />
@@ -1246,8 +1243,8 @@
                 </div>
                 <Switch
                   checked={settings.sound}
-                  onchange={e => {
-                    settings.sound = e.detail;
+                  onCheckedChange={v => {
+                    settings.sound = v;
                     saveSettings();
                   }}
                 />
@@ -1271,8 +1268,8 @@
                 </div>
                 <Switch
                   checked={settings.showHistory}
-                  onchange={e => {
-                    settings.showHistory = e.detail;
+                  onCheckedChange={v => {
+                    settings.showHistory = v;
                     saveSettings();
                   }}
                 />
@@ -1318,7 +1315,7 @@
 </div>
 
 <!-- QR Code Dialog -->
-<Dialog open={showQrDialog} onclose={() => (showQrDialog = false)}>
+<Dialog open={showQrDialog} onOpenChange={v => (showQrDialog = v)}>
   <DialogContent class="max-w-sm">
     <DialogHeader>
       <DialogTitle>Generated QR Code</DialogTitle>
