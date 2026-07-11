@@ -146,8 +146,8 @@
     // Apply theme
     applyTheme(settings.theme);
 
-    // Get cameras
-    getCameras();
+    // Get cameras (try getUserMedia first for permission, then enumerate)
+    requestCameraAndEnumerate();
   });
 
   onDestroy(() => {
@@ -187,6 +187,17 @@
     } catch (e) {
       console.error('Failed to get cameras:', e);
     }
+  }
+
+  async function requestCameraAndEnumerate() {
+    if (!browser) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach(t => t.stop());
+    } catch {
+      // getUserMedia may fail in some environments; continue anyway
+    }
+    await getCameras();
   }
 
   async function scanImageFile(file: File) {
@@ -246,6 +257,7 @@
           // Ignore scan errors
         }
       );
+      await getCameras();
     } catch (err) {
       console.error('Failed to start scanning:', err);
       isScanning = false;
