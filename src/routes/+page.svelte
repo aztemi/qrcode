@@ -16,6 +16,8 @@
   import { ScrollArea } from '$lib/components/ui/scroll-area';
   import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '$lib/components/ui/dialog';
 
+  import { installState, promptInstall } from '$lib/pwa/install.svelte';
+
   import {
     QrCode,
     Camera,
@@ -35,6 +37,8 @@
     MapPin,
     Link2,
     LoaderCircle,
+    PlusSquare,
+    ChevronRight,
     Check,
     X as XIcon,
     Image,
@@ -100,6 +104,9 @@
   let isGenerating = $state(false);
   let showQrDialog = $state(false);
   let generatedQrDataUrl = $state<string | null>(null);
+
+  let showInstallDialog = $state(false);
+  let isInstalling = $state(false);
 
   // Structured form fields
   let wifiSsid = $state('');
@@ -607,6 +614,21 @@
   function deleteHistoryItem(id: string) {
     history = history.filter(h => h.id !== id);
     saveHistory();
+  }
+
+  async function installApp() {
+    if (isInstalling) return;
+    if (!installState.hasPrompt) {
+      // No native prompt (e.g. iOS Safari) — open the manual instructions dialog
+      showInstallDialog = true;
+      return;
+    }
+    isInstalling = true;
+    try {
+      await promptInstall();
+    } finally {
+      isInstalling = false;
+    }
   }
 </script>
 
@@ -1336,6 +1358,32 @@
             </CardContent>
           </Card>
 
+          <!-- Install (PWA) -->
+          {#if !installState.isInstalled}
+            <Card>
+              <CardHeader>
+                <CardTitle class="flex items-center gap-2">
+                  <Download class="h-5 w-5 text-primary" />
+                  Install App
+                </CardTitle>
+              </CardHeader>
+              <CardContent class="pt-0 space-y-3">
+                <p class="text-sm text-muted-foreground">
+                  Add QR Code to your home screen for quick access — it works offline, just like a native app.
+                </p>
+                <Button onclick={installApp} disabled={isInstalling} class="w-full">
+                  {#if isInstalling}
+                    <LoaderCircle class="h-4 w-4 mr-2 animate-spin" />
+                    Installing…
+                  {:else}
+                    <Download class="h-4 w-4 mr-2" />
+                    Install
+                  {/if}
+                </Button>
+              </CardContent>
+            </Card>
+          {/if}
+
           <!-- About -->
           <Card>
             <CardHeader>
@@ -1461,6 +1509,36 @@
         </div>
       {/if}
     </div>
+  </DialogContent>
+</Dialog>
+
+<!-- iOS Manual Install Dialog -->
+<Dialog open={showInstallDialog} onOpenChange={v => (showInstallDialog = v)}>
+  <DialogContent class="max-w-sm">
+    <DialogHeader>
+      <DialogTitle>Add to Home Screen</DialogTitle>
+      <DialogDescription>Install QR Code like a native app on your iPhone or iPad.</DialogDescription>
+    </DialogHeader>
+    <ol class="space-y-3 text-sm">
+      <li class="flex items-start gap-3">
+        <span class="flex shrink-0 size-6 rounded-full bg-primary text-primary-foreground items-center justify-center text-xs font-semibold">1</span>
+        <span class="flex items-center gap-1.5 pt-0.5">
+          Tap the <Share2 class="h-4 w-4 text-primary" /> <strong class="font-semibold">Share</strong> button in Safari's toolbar.
+        </span>
+      </li>
+      <li class="flex items-start gap-3">
+        <span class="flex shrink-0 size-6 rounded-full bg-primary text-primary-foreground items-center justify-center text-xs font-semibold">2</span>
+        <span class="flex items-center gap-1.5 pt-0.5">
+          Scroll and choose <PlusSquare class="h-4 w-4 text-primary" /> <strong class="font-semibold">Add to Home Screen</strong>.
+        </span>
+      </li>
+      <li class="flex items-start gap-3">
+        <span class="flex shrink-0 size-6 rounded-full bg-primary text-primary-foreground items-center justify-center text-xs font-semibold">3</span>
+        <span class="flex items-center gap-1.5 pt-0.5">
+          Tap <ChevronRight class="h-4 w-4 text-primary" /> <strong class="font-semibold">Add</strong> — that's it.
+        </span>
+      </li>
+    </ol>
   </DialogContent>
 </Dialog>
 
