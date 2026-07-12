@@ -654,66 +654,8 @@
     </div>
   </div>
 
-  <!-- Mobile Tabs (bottom) -->
-  <div class="md:hidden border-t bg-background/95 backdrop-blur sticky bottom-0 z-50" style="padding-bottom: env(safe-area-inset-bottom, 0px)">
-    <div class="flex h-14 w-full" role="tablist">
-      <button
-        class={cn(
-          'relative flex flex-col items-center justify-center gap-1 text-xs font-medium flex-1 transition-colors',
-          activeTab === 'scan' ? 'text-primary' : 'text-muted-foreground'
-        )}
-        onclick={() => (activeTab = 'scan')}
-      >
-        <Camera class="h-5 w-5" />
-        <span>Scan</span>
-        {#if activeTab === 'scan'}
-          <span class="absolute top-0 left-0 right-0 h-0.5 bg-primary"></span>
-        {/if}
-      </button>
-      <button
-        class={cn(
-          'relative flex flex-col items-center justify-center gap-1 text-xs font-medium flex-1 transition-colors',
-          activeTab === 'create' ? 'text-primary' : 'text-muted-foreground'
-        )}
-        onclick={() => (activeTab = 'create')}
-      >
-        <QrCode class="h-5 w-5" />
-        <span>Create</span>
-        {#if activeTab === 'create'}
-          <span class="absolute top-0 left-0 right-0 h-0.5 bg-primary"></span>
-        {/if}
-      </button>
-      <button
-        class={cn(
-          'relative flex flex-col items-center justify-center gap-1 text-xs font-medium flex-1 transition-colors',
-          activeTab === 'history' ? 'text-primary' : 'text-muted-foreground'
-        )}
-        onclick={() => (activeTab = 'history')}
-      >
-        <History class="h-5 w-5" />
-        <span>History</span>
-        {#if activeTab === 'history'}
-          <span class="absolute top-0 left-0 right-0 h-0.5 bg-primary"></span>
-        {/if}
-      </button>
-      <button
-        class={cn(
-          'relative flex flex-col items-center justify-center gap-1 text-xs font-medium flex-1 transition-colors',
-          activeTab === 'settings' ? 'text-primary' : 'text-muted-foreground'
-        )}
-        onclick={() => (activeTab = 'settings')}
-      >
-        <Settings class="h-5 w-5" />
-        <span>Settings</span>
-        {#if activeTab === 'settings'}
-          <span class="absolute top-0 left-0 right-0 h-0.5 bg-primary"></span>
-        {/if}
-      </button>
-    </div>
-  </div>
-
   <!-- Tab Content -->
-  <main class="flex-1 overflow-y-auto p-4 lg:p-6">
+  <main class="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 md:pb-6">
     <div class="mx-auto max-w-[1000px]">
       <!-- SCAN TAB -->
       {#if activeTab === 'scan'}
@@ -1387,6 +1329,67 @@
       {/if}
     </div>
   </main>
+
+  <!-- Mobile Tabs (bottom) -->
+  <div
+    class="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur z-50"
+    style="padding-bottom: env(safe-area-inset-bottom, 0px)"
+  >
+    <div class="flex h-14 w-full" role="tablist">
+      <button
+        class={cn(
+          'relative flex flex-col items-center justify-center gap-1 text-xs font-medium flex-1 transition-colors',
+          activeTab === 'scan' ? 'text-primary' : 'text-muted-foreground'
+        )}
+        onclick={() => (activeTab = 'scan')}
+      >
+        <Camera class="h-5 w-5" />
+        <span>Scan</span>
+        {#if activeTab === 'scan'}
+          <span class="absolute top-0 left-0 right-0 h-0.5 bg-primary"></span>
+        {/if}
+      </button>
+      <button
+        class={cn(
+          'relative flex flex-col items-center justify-center gap-1 text-xs font-medium flex-1 transition-colors',
+          activeTab === 'create' ? 'text-primary' : 'text-muted-foreground'
+        )}
+        onclick={() => (activeTab = 'create')}
+      >
+        <QrCode class="h-5 w-5" />
+        <span>Create</span>
+        {#if activeTab === 'create'}
+          <span class="absolute top-0 left-0 right-0 h-0.5 bg-primary"></span>
+        {/if}
+      </button>
+      <button
+        class={cn(
+          'relative flex flex-col items-center justify-center gap-1 text-xs font-medium flex-1 transition-colors',
+          activeTab === 'history' ? 'text-primary' : 'text-muted-foreground'
+        )}
+        onclick={() => (activeTab = 'history')}
+      >
+        <History class="h-5 w-5" />
+        <span>History</span>
+        {#if activeTab === 'history'}
+          <span class="absolute top-0 left-0 right-0 h-0.5 bg-primary"></span>
+        {/if}
+      </button>
+      <button
+        class={cn(
+          'relative flex flex-col items-center justify-center gap-1 text-xs font-medium flex-1 transition-colors',
+          activeTab === 'settings' ? 'text-primary' : 'text-muted-foreground'
+        )}
+        onclick={() => (activeTab = 'settings')}
+      >
+        <Settings class="h-5 w-5" />
+        <span>Settings</span>
+        {#if activeTab === 'settings'}
+          <span class="absolute top-0 left-0 right-0 h-0.5 bg-primary"></span>
+        {/if}
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- QR Code Dialog -->
