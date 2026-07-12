@@ -84,6 +84,7 @@
   let html5Qrcode = $state<Html5Qrcode | null>(null);
   let selectedCameraId = $state<string | null>(null);
   let cameras = $state<MediaDeviceInfo[]>([]);
+  let audioCtx: AudioContext | null = null;
   let isScanningFile = $state(false);
   let copiedId = $state<string | null>(null);
   let scanError = $state<string | null>(null);
@@ -154,6 +155,7 @@
 
   onDestroy(() => {
     stopScanning();
+    audioCtx?.close().catch(() => {});
   });
 
   function applyTheme(theme: Settings['theme']) {
@@ -237,8 +239,24 @@
     }
   }
 
+  function ensureAudioCtx() {
+    if (!browser) return;
+    if (!audioCtx) {
+      const Ctor = window.AudioContext || (window as any).webkitAudioContext;
+      if (Ctor) audioCtx = new Ctor();
+    }
+    // A user gesture just happened; resume if suspended.
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
+  }
+
   async function startScanning() {
     if (!browser || isScanning) return;
+
+    // Warm up AudioContext on the user gesture (Start tap) so the first
+    // scan beep is audible.
+    ensureAudioCtx();
 
     try {
       isScanning = true;
@@ -345,8 +363,10 @@
     }
 
     if (settings.sound) {
-      // Play a subtle beep
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // Play a subtle beep using the shared (already-running) context
+      const ctx = audioCtx ?? new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (!audioCtx) audioCtx = ctx;
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
