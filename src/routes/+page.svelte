@@ -38,6 +38,7 @@
     Check,
     X as XIcon,
     Image,
+    ImageUp,
     FileText,
     Eye,
     MessageSquare,
@@ -342,16 +343,21 @@
     }
   }
 
-  async function switchCamera() {
-    if (cameras.length < 2) return;
-    const idx = cameras.findIndex(c => c.deviceId === selectedCameraId);
-    const next = cameras[(idx + 1) % cameras.length];
-    selectedCameraId = next.deviceId;
+  async function switchCameraTo(deviceId: string) {
+    if (selectedCameraId === deviceId) return;
+    selectedCameraId = deviceId;
     if (isScanning) {
       stopScanning();
       await tick();
       await startScanning();
     }
+  }
+
+  async function switchCamera() {
+    if (cameras.length < 2) return;
+    const idx = cameras.findIndex(c => c.deviceId === selectedCameraId);
+    const next = cameras[(idx + 1) % cameras.length];
+    await switchCameraTo(next.deviceId);
   }
 
   function onScanSuccess(text: string) {
@@ -686,11 +692,11 @@
               <CardHeader class="pb-2">
                 <CardTitle class="flex items-center gap-2">
                   <Camera class="h-5 w-5 text-primary" />
-                  QR Scanner
+                  QR from Camera
                 </CardTitle>
               </CardHeader>
               <CardContent class="pt-0">
-                <div class="relative aspect-square max-w-xs mx-auto">
+                <div class="relative overflow-hidden aspect-square max-w-xs mx-auto">
                   <div id="qr-reader" class="w-full h-full"></div>
                   {#if !isScanning}
                     <div
@@ -740,6 +746,31 @@
                     </div>
                   {/if}
                 </div>
+
+                <!-- Camera Selector -->
+                {#if cameras.length > 1}
+                  <div class="flex items-center gap-1 pt-6">
+                    <Label class="text-sm font-medium">Active Camera</Label>
+                    <Select
+                      value={selectedCameraId ?? undefined}
+                      onValueChange={v => {
+                        if (v) switchCameraTo(v);
+                      }}
+                      type="single"
+                    >
+                      <SelectTrigger class="w-full">
+                        {cameras.find(c => c.deviceId === selectedCameraId)?.label || 'Select camera'}
+                      </SelectTrigger>
+                      <SelectContent>
+                        {#each cameras as camera}
+                          <SelectItem value={camera.deviceId}>
+                            {camera.label || `Camera ${cameras.indexOf(camera) + 1}`}
+                          </SelectItem>
+                        {/each}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                {/if}
               </CardContent>
             </Card>
 
@@ -788,39 +819,24 @@
             <div id="qr-reader-temp" class="hidden"></div>
 
             <Card>
-              <CardContent class="pt-6">
+              <CardHeader class="pb-2">
+                <CardTitle class="flex items-center gap-2">
+                  <ImageUp class="h-5 w-5 text-primary" />
+                  QR from Image
+                </CardTitle>
+              </CardHeader>
+              <CardContent class="pt-0">
                 <Button variant="outline" class="w-full" onclick={triggerFileInput} disabled={isScanningFile || isScanning}>
                   {#if isScanningFile}
                     <LoaderCircle class="h-4 w-4 animate-spin mr-2" />
                     Scanning image...
                   {:else}
                     <Upload class="h-4 w-4 mr-2" />
-                    Scan QR from Image
+                    Upload an image with QR
                   {/if}
                 </Button>
               </CardContent>
             </Card>
-
-            <!-- Camera Selector -->
-            {#if cameras.length > 1}
-              <Card>
-                <CardContent class="pt-6">
-                  <Label class="text-sm font-medium mb-2 block">Camera</Label>
-                  <Select value={selectedCameraId ?? undefined} onValueChange={v => (selectedCameraId = v ?? null)} type="single">
-                    <SelectTrigger class="w-full">
-                      {cameras.find(c => c.deviceId === selectedCameraId)?.label || 'Select camera'}
-                    </SelectTrigger>
-                    <SelectContent>
-                      {#each cameras as camera}
-                        <SelectItem value={camera.deviceId}>
-                          {camera.label || `Camera ${cameras.indexOf(camera) + 1}`}
-                        </SelectItem>
-                      {/each}
-                    </SelectContent>
-                  </Select>
-                </CardContent>
-              </Card>
-            {/if}
           </div>
         </div>
         <!-- CREATE TAB -->
