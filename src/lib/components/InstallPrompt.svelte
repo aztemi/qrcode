@@ -6,8 +6,8 @@
   // UX guidelines followed:
   // - Never blocks the main flow (inline, dismissible).
   // - Persists dismissal for 14 days — no nagging on every page load.
-  // - Around 80% of installs happen after meaningful engagement, so we
-  //   require a brief on-page delay before showing.
+  // - Requires meaningful engagement before prompting: at least 1 user tap/click
+  //   AND at least 30 seconds on page — ~80% of installs happen after engagement.
   // - Clear primary action, clear dismiss control, respects prefers-reduced-motion.
 
   import { onMount, onDestroy } from 'svelte';
@@ -20,22 +20,47 @@
   let iosStepsOpen = $state(false);
   let prompting = $state(false);
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let checkTimer: ReturnType<typeof setInterval> | null = null;
 
-  const SHOW_DELAY = 3000; // 3s after mount before first eligibility check
+  const MIN_VIEW_TIME = 30_000;
+  let pageLoadTime = 0;
+  let hasInteracted = false;
+
+  function isEligible() {
+    return hasInteracted && Date.now() - pageLoadTime >= MIN_VIEW_TIME;
+  }
 
   function evaluateVisibility() {
     if (!browser) return;
-    visible = installState.shouldShow;
+    if (!installState.isInstalled && isEligible() && installState.shouldShow) {
+      visible = true;
+      if (checkTimer) {
+        clearInterval(checkTimer);
+        checkTimer = null;
+      }
+    }
+  }
+
+  function handleInteraction() {
+    if (hasInteracted) return;
+    hasInteracted = true;
+    // User just interacted — start polling for the time gate.
+    if (!checkTimer) {
+      checkTimer = setInterval(evaluateVisibility, 1000);
+    }
   }
 
   onMount(() => {
     if (!browser) return;
-    // Small delay so we don't interrupt initial page load with an install push.
-    timer = setTimeout(evaluateVisibility, SHOW_DELAY);
+    pageLoadTime = Date.now();
+    document.addEventListener('click', handleInteraction, { once: true });
+    // Schedule the first eligibility check after the time gate.
+    timer = setTimeout(evaluateVisibility, MIN_VIEW_TIME);
   });
 
   onDestroy(() => {
     if (timer) clearTimeout(timer);
+    if (checkTimer) clearInterval(checkTimer);
   });
 
   async function handleInstall() {
@@ -60,14 +85,15 @@
   }
 
   // Reactivity: anytime installState.shouldShow changes (e.g. a new
-  // beforeinstallprompt arrives), refresh visibility.
+  // beforeinstallprompt arrives), refresh visibility — but only if engagement
+  // gates are already satisfied.
   $effect(() => {
     if (!browser) return;
     // Touch the reactive state so this re-runs on change.
     const _should = installState.shouldShow;
     const _can = installState.canInstall;
-    // Don't immediately override a just-dismissed banner; evaluate when state changes.
-    if (_should) {
+    // Don't override a just-dismissed banner; only show if engagement met.
+    if (_should && !installState.isInstalled && isEligible()) {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         visible = true;
