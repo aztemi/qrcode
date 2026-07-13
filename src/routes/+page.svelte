@@ -93,6 +93,7 @@
   let isScanningFile = $state(false);
   let copiedId = $state<string | null>(null);
   let scanError = $state<string | null>(null);
+  let fileScanError = $state<string | null>(null);
   // Create tab state
   let qrType = $state<QRType>('url');
   let qrInput = $state('');
@@ -219,6 +220,7 @@
 
     isScanningFile = true;
     scanResult = null;
+    fileScanError = null;
 
     try {
       const qrCode = new Html5Qrcode('qr-reader-temp');
@@ -228,6 +230,7 @@
       qrCode.clear();
     } catch {
       scanResult = null;
+      fileScanError = 'No QR code found in this image.';
     } finally {
       isScanningFile = false;
     }
@@ -337,6 +340,7 @@
       await getCameras();
     } catch (err) {
       console.error('Failed to start scanning:', err);
+      scanError = 'Failed to start camera. Please try again.';
       isScanning = false;
       scanAnimation = false;
     }
@@ -857,6 +861,9 @@
                     Upload an image with QR
                   {/if}
                 </Button>
+                {#if fileScanError}
+                  <p class="text-sm text-destructive mt-2">{fileScanError}</p>
+                {/if}
               </CardContent>
             </Card>
           </div>
