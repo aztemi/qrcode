@@ -11,12 +11,15 @@
     if (!browser) return;
     // Set up PWA install handling (beforeinstallprompt / appinstalled / display-mode)
     initInstallPrompt();
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(err => console.warn('SW registration failed:', err));
-      });
-    }
   });
+
+  // Register the service worker eagerly (not deferred to `load`) so it activates
+  // before offline navigations. iOS Safari launches the installed PWA with a
+  // network fetch for start_url — if the SW isn't yet controlling the page,
+  // there's nothing to fall back to the cached shell and you get an offline error.
+  if (browser && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(err => console.warn('SW registration failed:', err));
+  }
 </script>
 
 <svelte:head>
