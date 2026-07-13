@@ -2,24 +2,19 @@
   import './layout.css';
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
+  import { useRegisterSW } from 'virtual:pwa-register/svelte';
   import InstallPrompt from '$lib/components/InstallPrompt.svelte';
+  import UpdateAvailable from '$lib/components/UpdateAvailable.svelte';
   import { initInstallPrompt } from '$lib/pwa/install.svelte';
 
   let { children } = $props();
 
+  const { needRefresh, updateServiceWorker } = useRegisterSW();
+
   onMount(() => {
     if (!browser) return;
-    // Set up PWA install handling (beforeinstallprompt / appinstalled / display-mode)
     initInstallPrompt();
   });
-
-  // Register the service worker eagerly (not deferred to `load`) so it activates
-  // before offline navigations. iOS Safari launches the installed PWA with a
-  // network fetch for start_url — if the SW isn't yet controlling the page,
-  // there's nothing to fall back to the cached shell and you get an offline error.
-  if (browser && 'serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(err => console.warn('SW registration failed:', err));
-  }
 </script>
 
 <svelte:head>
@@ -28,5 +23,6 @@
 
 <div class="min-h-screen flex flex-col bg-background text-foreground">
   <InstallPrompt />
+  <UpdateAvailable {needRefresh} {updateServiceWorker} />
   {@render children()}
 </div>

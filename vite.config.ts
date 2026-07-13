@@ -23,7 +23,7 @@ export default defineConfig({
       })
     }),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'robots.txt', 'apple-touch-icon.png'],
       manifest: {
         name: 'QR Code Reader & Creator',
