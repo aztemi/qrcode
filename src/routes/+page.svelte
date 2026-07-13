@@ -634,10 +634,10 @@
 
 <div class="w-full flex flex-col min-h-screen bg-background">
   <!-- Header with Desktop Tabs -->
-  <header class="w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+  <header class="hidden md:block w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
     <div class="mx-auto max-w-[1000px]">
       <div class="flex h-14 items-center justify-center px-4">
-        <h1 class="text-xl font-semibold tracking-tight">QR Code</h1>
+        <h1 class="text-xl font-semibold tracking-tight">QR Code App</h1>
       </div>
     </div>
   </header>
@@ -703,7 +703,7 @@
   </div>
 
   <!-- Tab Content -->
-  <main class="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 md:pb-6">
+  <main class="flex-1 overflow-y-auto p-4 lg:p-6 pb-25 md:pb-6">
     <div class="mx-auto max-w-[1000px]">
       <!-- SCAN TAB -->
       {#if activeTab === 'scan'}
@@ -1395,8 +1395,9 @@
             <CardContent class="pt-0 space-y-4">
               <div class="space-y-2 text-sm">
                 <p class="font-medium">QR Code Reader & Creator</p>
-                <p class="text-muted-foreground">Version {version}</p>
                 <p class="text-muted-foreground">A Progressive Web App for scanning and creating QR codes</p>
+                <p class="text-sm text-muted-foreground">Version {version}</p>
+                <p class="text-sm text-muted-foreground">Build {process.env.BUILDTIME}</p>
               </div>
               <div class="flex flex-wrap gap-2">
                 <Badge variant="outline">PWA Ready</Badge>
@@ -1419,7 +1420,7 @@
     class="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur z-50"
     style="padding-bottom: env(safe-area-inset-bottom, 0px)"
   >
-    <div class="flex h-14 w-full" role="tablist">
+    <div class="flex h-18 w-full" role="tablist">
       <button
         class={cn(
           'relative flex flex-col items-center justify-center gap-1 text-xs font-medium flex-1 transition-colors',
@@ -1568,7 +1569,7 @@
       padding-top: env(safe-area-inset-top);
     }
     main {
-      padding-bottom: env(safe-area-inset-bottom);
+      padding-bottom: calc(6.25rem + env(safe-area-inset-bottom));
     }
   }
 </style>

@@ -5,6 +5,9 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+  define: {
+    'process.env.BUILDTIME': JSON.stringify(new Date().toISOString())
+  },
   plugins: [
     tailwindcss(),
     sveltekit({
