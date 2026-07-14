@@ -545,16 +545,16 @@
     return labels[type];
   }
 
-  function getQRTypePlaceholder(type: QRType): string {
-    const placeholders: Record<QRType, string> = {
-      url: 'https://example.com',
-      text: 'Any text content',
-      wifi: 'SSID|Password|WPA|false (format: SSID|Password|Encryption|Hidden)',
-      email: 'email@example.com|Subject|Body',
-      phone: '+1234567890',
-      sms: '+1234567890|Message text',
-      location: '37.7749|-122.4194|Optional query',
-      contact: 'Name|Phone|Email|Organization|Website'
+  function getQRTypePlaceholder(type: QRType): Record<string, string> {
+    const placeholders: Record<QRType, Record<string, string>> = {
+      url: { content: 'https://example.com' },
+      text: { content: 'Any text content' },
+      phone: { content: '+1234567890' },
+      wifi: { ssid: 'MyNetwork', password: '••••••••' },
+      email: { to: 'email@example.com', subject: 'Greetings', body: 'Hello...' },
+      sms: { number: '+1234567890', message: 'Hello...' },
+      location: { lat: '37.7749', lng: '-122.4194' },
+      contact: { name: 'Jane Doe', phone: '+1234567890', email: 'hello@example.com', org: 'Acme Inc.', url: 'https://example.com' }
     };
     return placeholders[type];
   }
@@ -930,18 +930,23 @@
                 <div>
                   <Label class="text-sm font-medium mb-2 block">Content</Label>
                   {#if qrType === 'url' || qrType === 'phone'}
-                    <Input bind:value={qrInput} placeholder={getQRTypePlaceholder(qrType)} class="font-mono text-sm" />
+                    <Input bind:value={qrInput} placeholder={getQRTypePlaceholder(qrType).content} class="font-mono text-sm" />
                   {:else if qrType === 'text'}
-                    <Textarea bind:value={qrInput} placeholder={getQRTypePlaceholder(qrType)} class="min-h-[100px] font-mono text-sm" rows={4} />
+                    <Textarea
+                      bind:value={qrInput}
+                      placeholder={getQRTypePlaceholder(qrType).content}
+                      class="min-h-[100px] font-mono text-sm"
+                      rows={4}
+                    />
                   {:else if qrType === 'wifi'}
                     <div class="space-y-3">
                       <div>
                         <Label class="text-xs mb-1 block text-muted-foreground">Network name (SSID)</Label>
-                        <Input bind:value={wifiSsid} placeholder="MyNetwork" />
+                        <Input bind:value={wifiSsid} placeholder={getQRTypePlaceholder('wifi').ssid} />
                       </div>
                       <div>
                         <Label class="text-xs mb-1 block text-muted-foreground">Password</Label>
-                        <Input bind:value={wifiPassword} placeholder="••••••••" type="text" />
+                        <Input bind:value={wifiPassword} placeholder={getQRTypePlaceholder('wifi').password} type="text" />
                       </div>
                       <div>
                         <Label class="text-xs mb-1 block text-muted-foreground">Encryption</Label>
@@ -963,37 +968,37 @@
                     <div class="space-y-3">
                       <div>
                         <Label class="text-xs mb-1 block text-muted-foreground">Recipient</Label>
-                        <Input bind:value={emailTo} placeholder="email@example.com" type="email" />
+                        <Input bind:value={emailTo} placeholder={getQRTypePlaceholder('email').to} type="email" />
                       </div>
                       <div>
                         <Label class="text-xs mb-1 block text-muted-foreground">Subject (optional)</Label>
-                        <Input bind:value={emailSubject} placeholder="Greetings" />
+                        <Input bind:value={emailSubject} placeholder={getQRTypePlaceholder('email').subject} />
                       </div>
                       <div>
                         <Label class="text-xs mb-1 block text-muted-foreground">Body (optional)</Label>
-                        <Textarea bind:value={emailBody} rows={3} placeholder="Hello..." />
+                        <Textarea bind:value={emailBody} rows={3} placeholder={getQRTypePlaceholder('email').body} />
                       </div>
                     </div>
                   {:else if qrType === 'sms'}
                     <div class="space-y-3">
                       <div>
                         <Label class="text-xs mb-1 block text-muted-foreground">Phone number</Label>
-                        <Input bind:value={smsNumber} placeholder="+1234567890" />
+                        <Input bind:value={smsNumber} placeholder={getQRTypePlaceholder('sms').number} />
                       </div>
                       <div>
                         <Label class="text-xs mb-1 block text-muted-foreground">Message</Label>
-                        <Textarea bind:value={smsMessage} rows={3} placeholder="Hello..." />
+                        <Textarea bind:value={smsMessage} rows={3} placeholder={getQRTypePlaceholder('sms').message} />
                       </div>
                     </div>
                   {:else if qrType === 'location'}
                     <div class="grid grid-cols-2 gap-3">
                       <div>
                         <Label class="text-xs mb-1 block text-muted-foreground">Latitude</Label>
-                        <Input bind:value={locLat} placeholder="37.7749" />
+                        <Input bind:value={locLat} placeholder={getQRTypePlaceholder('location').lat} />
                       </div>
                       <div>
                         <Label class="text-xs mb-1 block text-muted-foreground">Longitude</Label>
-                        <Input bind:value={locLng} placeholder="-122.4194" />
+                        <Input bind:value={locLng} placeholder={getQRTypePlaceholder('location').lng} />
                       </div>
                     </div>
                     <Button variant="outline" size="sm" class="mt-3 w-full" onclick={useMyLocation}>
@@ -1009,23 +1014,23 @@
                     <div class="space-y-3">
                       <div>
                         <Label class="text-xs mb-1 block text-muted-foreground">Full name</Label>
-                        <Input bind:value={contactName} placeholder="Jane Doe" />
+                        <Input bind:value={contactName} placeholder={getQRTypePlaceholder('contact').name} />
                       </div>
                       <div>
                         <Label class="text-xs mb-1 block text-muted-foreground">Phone (optional)</Label>
-                        <Input bind:value={contactPhone} placeholder="+1234567890" />
+                        <Input bind:value={contactPhone} placeholder={getQRTypePlaceholder('contact').phone} />
                       </div>
                       <div>
                         <Label class="text-xs mb-1 block text-muted-foreground">Email (optional)</Label>
-                        <Input bind:value={contactEmail} placeholder="hello@example.com" type="email" />
+                        <Input bind:value={contactEmail} placeholder={getQRTypePlaceholder('contact').email} type="email" />
                       </div>
                       <div>
                         <Label class="text-xs mb-1 block text-muted-foreground">Organization (optional)</Label>
-                        <Input bind:value={contactOrg} placeholder="Acme Inc." />
+                        <Input bind:value={contactOrg} placeholder={getQRTypePlaceholder('contact').org} />
                       </div>
                       <div>
                         <Label class="text-xs mb-1 block text-muted-foreground">Website (optional)</Label>
-                        <Input bind:value={contactUrl} placeholder="https://example.com" />
+                        <Input bind:value={contactUrl} placeholder={getQRTypePlaceholder('contact').url} />
                       </div>
                     </div>
                   {/if}
