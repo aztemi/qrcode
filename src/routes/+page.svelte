@@ -930,12 +930,12 @@
                 <div>
                   <Label class="text-sm font-medium mb-2 block">Content</Label>
                   {#if qrType === 'url' || qrType === 'phone'}
-                    <Input bind:value={qrInput} placeholder={getQRTypePlaceholder(qrType).content} class="font-mono text-sm" />
+                    <Input bind:value={qrInput} placeholder={getQRTypePlaceholder(qrType).content} class="font-mono text-base" />
                   {:else if qrType === 'text'}
                     <Textarea
                       bind:value={qrInput}
                       placeholder={getQRTypePlaceholder(qrType).content}
-                      class="min-h-[100px] font-mono text-sm"
+                      class="min-h-[100px] font-mono text-base"
                       rows={4}
                     />
                   {:else if qrType === 'wifi'}
