@@ -105,6 +105,7 @@
   let isGenerating = $state(false);
   let showQrDialog = $state(false);
   let generatedQrDataUrl = $state<string | null>(null);
+  let previewEl: HTMLDivElement | null = $state(null);
 
   let showInstallDialog = $state(false);
   let isInstalling = $state(false);
@@ -507,6 +508,9 @@
       qrDataUrl = dataUrl;
       generatedQrDataUrl = dataUrl;
       createAnimation = false;
+
+      await tick();
+      previewEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
       // Add to history
       const item: HistoryItem = {
@@ -1062,40 +1066,42 @@
 
           <!-- Preview -->
           {#if qrDataUrl}
-            <Card>
-              <CardHeader class="pb-2">
-                <CardTitle class="flex items-center gap-2">
-                  <Image class="h-5 w-5 text-primary" />
-                  Preview
-                </CardTitle>
-              </CardHeader>
-              <CardContent class="pt-0">
-                <div class="flex flex-col items-center gap-4">
-                  <div class="bg-white p-4 rounded-lg shadow-sm">
-                    <img src={qrDataUrl} alt="Generated QR Code" class="mx-auto" style="max-width: 100%; height: auto;" />
+            <div bind:this={previewEl}>
+              <Card>
+                <CardHeader class="pb-2">
+                  <CardTitle class="flex items-center gap-2">
+                    <Image class="h-5 w-5 text-primary" />
+                    Preview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent class="pt-0">
+                  <div class="flex flex-col items-center gap-4">
+                    <div class="bg-white p-4 rounded-lg shadow-sm">
+                      <img src={qrDataUrl} alt="Generated QR Code" class="mx-auto" style="max-width: 100%; height: auto;" />
+                    </div>
+                    <div class="flex flex-wrap gap-2 justify-center w-full">
+                      <Button onclick={downloadQRCode}>
+                        <Download class="h-4 w-4 mr-2" />
+                        Download PNG
+                      </Button>
+                      <Button variant="outline" onclick={shareQRCode}>
+                        <Share2 class="h-4 w-4 mr-2" />
+                        Share
+                      </Button>
+                      <Button variant="outline" onclick={() => copyToClipboard(qrInput, 'preview-copy')}>
+                        {#if copiedId === 'preview-copy'}
+                          <Check class="h-4 w-4 mr-2" />
+                          Copied!
+                        {:else}
+                          <Copy class="h-4 w-4 mr-2" />
+                          Copy Data
+                        {/if}
+                      </Button>
+                    </div>
                   </div>
-                  <div class="flex flex-wrap gap-2 justify-center w-full">
-                    <Button onclick={downloadQRCode}>
-                      <Download class="h-4 w-4 mr-2" />
-                      Download PNG
-                    </Button>
-                    <Button variant="outline" onclick={shareQRCode}>
-                      <Share2 class="h-4 w-4 mr-2" />
-                      Share
-                    </Button>
-                    <Button variant="outline" onclick={() => copyToClipboard(qrInput, 'preview-copy')}>
-                      {#if copiedId === 'preview-copy'}
-                        <Check class="h-4 w-4 mr-2" />
-                        Copied!
-                      {:else}
-                        <Copy class="h-4 w-4 mr-2" />
-                        Copy Data
-                      {/if}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           {/if}
         </div>
         <!-- HISTORY TAB -->
