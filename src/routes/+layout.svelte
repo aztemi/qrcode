@@ -21,7 +21,7 @@
   <link rel="icon" href="/icon-192.svg" />
 </svelte:head>
 
-<div class="min-h-screen flex flex-col bg-background text-foreground">
+<div class="h-dvh flex flex-col overflow-hidden bg-background text-foreground">
   <InstallPrompt />
   <UpdateAvailable {needRefresh} {updateServiceWorker} />
   {@render children()}

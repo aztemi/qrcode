@@ -636,7 +636,7 @@
   }
 </script>
 
-<div class="w-full flex flex-col min-h-screen bg-background">
+<div class="w-full flex flex-col flex-1 min-h-0 bg-background">
   <!-- Header with Desktop Tabs -->
   <header class="hidden md:block w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
     <div class="mx-auto max-w-[1000px]">
@@ -707,7 +707,7 @@
   </div>
 
   <!-- Tab Content -->
-  <main class="flex-1 overflow-y-auto p-4 lg:p-6 pb-25 md:pb-6">
+  <main class="flex-1 min-h-0 overflow-y-auto p-4 lg:p-6 pb-25 md:pb-6">
     <div class="mx-auto max-w-[1000px]">
       <!-- SCAN TAB -->
       {#if activeTab === 'scan'}
@@ -871,14 +871,15 @@
         <!-- CREATE TAB -->
       {:else if activeTab === 'create'}
         <div class="space-y-6 max-w-2xl mx-auto w-full">
+          <div class="mb-4">
+            <h2 class="text-xl font-semibold flex items-center gap-2">
+              <QrCode class="h-5 w-5" />
+              Create QR Code
+            </h2>
+          </div>
+
           <!-- QR Type Selector -->
           <Card>
-            <CardHeader class="pb-2">
-              <CardTitle class="flex items-center gap-2">
-                <QrCode class="h-5 w-5 text-primary" />
-                Create QR Code
-              </CardTitle>
-            </CardHeader>
             <CardContent class="pt-0">
               <div class="space-y-4">
                 <!-- Type Selector -->
@@ -1371,7 +1372,7 @@
               <CardHeader>
                 <CardTitle class="flex items-center gap-2">
                   <Download class="h-5 w-5 text-primary" />
-                  Install App
+                  Install This App
                 </CardTitle>
               </CardHeader>
               <CardContent class="pt-0 space-y-3">
@@ -1403,8 +1404,14 @@
               <div class="space-y-2 text-sm">
                 <p class="font-medium">QR Code Reader & Creator</p>
                 <p class="text-muted-foreground">A Progressive Web App for scanning and creating QR codes</p>
-                <p class="text-sm text-muted-foreground">Version {version}</p>
-                <p class="text-sm text-muted-foreground">Build {process.env.BUILDTIME}</p>
+                <div class="flex items-center justify-between text-sm md:px-6">
+                  <p class="font-medium">Version</p>
+                  <p class="text-muted-foreground">{version}</p>
+                </div>
+                <div class="flex items-center justify-between text-sm md:px-6">
+                  <p class="font-medium">Build</p>
+                  <p class="text-muted-foreground">{process.env.BUILDTIME}</p>
+                </div>
               </div>
               <div class="flex flex-wrap gap-2">
                 <Badge variant="outline">PWA Ready</Badge>
