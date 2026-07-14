@@ -929,7 +929,9 @@
                 <!-- Input -->
                 <div>
                   <Label class="text-sm font-medium mb-2 block">Content</Label>
-                  {#if qrType === 'url' || qrType === 'text' || qrType === 'phone'}
+                  {#if qrType === 'url' || qrType === 'phone'}
+                    <Input bind:value={qrInput} placeholder={getQRTypePlaceholder(qrType)} class="font-mono text-sm" />
+                  {:else if qrType === 'text'}
                     <Textarea bind:value={qrInput} placeholder={getQRTypePlaceholder(qrType)} class="min-h-[100px] font-mono text-sm" rows={4} />
                   {:else if qrType === 'wifi'}
                     <div class="space-y-3">
