@@ -19,7 +19,11 @@
 </script>
 
 {#if $needRefresh && !dismissed}
-  <div role="status" aria-label="Update available" class="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-2 fade-in-0 duration-300">
+  <div
+    role="status"
+    aria-label="Update available"
+    class="fixed bottom-24 md:bottom-4 right-4 z-[60] animate-in slide-in-from-bottom-2 fade-in-0 duration-300"
+  >
     <div class="flex items-center gap-3 p-3 rounded-xl border bg-card text-card-foreground shadow-lg">
       <div class="hidden sm:flex shrink-0 size-9 rounded-lg bg-primary text-primary-foreground items-center justify-center">
         <RefreshCw class="size-4" aria-hidden="true" />
