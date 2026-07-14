@@ -377,7 +377,7 @@
     scanAnimation = false;
 
     if (settings.vibration && navigator.vibrate) {
-      navigator.vibrate(100);
+      navigator.vibrate([200, 50, 200]);
     }
 
     if (settings.sound) {
