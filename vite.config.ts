@@ -48,11 +48,25 @@ export default defineConfig({
         categories: ['utilities', 'productivity']
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        navigateFallback: 'index.html',
+        globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
+        globIgnores: ['**/index.html'],
+        navigateFallback: null,
         navigateFallbackDenylist: [/^\/api\//],
-        additionalManifestEntries: [{ url: 'index.html', revision: null }],
         runtimeCaching: [
+          {
+            // Network-first for navigations so a fresh index.html (with
+            // current asset hashes) is always fetched when online. This
+            // prevents the blank-screen bug on iOS standalone PWAs where
+            // a stale precached index.html references old hashed filenames
+            // that no longer exist on the server after a redeploy.
+            urlPattern: ({ request }: { request: Request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'pages',
+              networkTimeoutSeconds: 3,
+              expiration: { maxEntries: 5, maxAgeSeconds: 60 * 60 * 24 }
+            }
+          },
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',

@@ -12,16 +12,40 @@
 
     <meta property="og:type" content="website" />
     <meta property="og:title" content="QR Code Reader & Creator" />
-    <meta property="og:description" content="Scan and create QR codes with this Progressive Web App. Supports URLs, WiFi, email, phone, SMS, locations, and vCard contacts." />
+    <meta
+      property="og:description"
+      content="Scan and create QR codes with this Progressive Web App. Supports URLs, WiFi, email, phone, SMS, locations, and vCard contacts."
+    />
     <meta property="og:image" content="/icon-512.png" />
 
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="QR Code Reader & Creator" />
-    <meta name="twitter:description" content="Scan and create QR codes with this Progressive Web App. Supports URLs, WiFi, email, phone, SMS, locations, and vCard contacts." />
+    <meta
+      name="twitter:description"
+      content="Scan and create QR codes with this Progressive Web App. Supports URLs, WiFi, email, phone, SMS, locations, and vCard contacts."
+    />
     <meta name="twitter:image" content="/icon-512.png" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">
     <div style="display: contents">%sveltekit.body%</div>
+    <script>
+      // Fallback: if module imports fail (e.g. stale cached index.html on
+      // iOS standalone PWA references old hashed filenames that 404), show
+      // a retry prompt instead of a permanent blank white screen.
+      window.addEventListener('unhandledrejection', function (e) {
+        if (e.reason && /import|module|fetch|Loading/i.test(String(e.reason))) {
+          document.documentElement.innerHTML =
+            '<body style="margin:0;display:grid;place-items:center;min-height:100dvh;font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0">' +
+            '<div style="text-align:center;padding:2rem">' +
+            '<p style="font-size:1.125rem;margin-bottom:1.5rem">App needs to refresh</p>' +
+            '<button onclick="location.reload()" style="padding:.75rem 2rem;border:none;border-radius:.5rem;background:#3b82f6;color:#fff;font-size:1rem;cursor:pointer">Reload</button>' +
+            '</div></body>';
+        }
+      });
+    </script>
   </body>
 </html>
